@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import emailjs from '@emailjs/browser';
+
+// ⚠️ EmailJS Configuration
+  const EMAILJS_SERVICE_ID = 'yalamlam_smtp'; 
+  const EMAILJS_TEMPLATE_ID = 'template_oibiz3z'; 
+  const EMAILJS_PUBLIC_KEY = 'user_9hNXFaXZnQiRVgtyx';
 
 export default function Admin() {
   const [user, setUser] = useState(null);
