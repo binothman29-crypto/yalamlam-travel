@@ -1,8 +1,33 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  // Check if user is logged in
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    };
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    navigate('/');
+    setIsMenuOpen(false);
+  };
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-40">
@@ -18,23 +43,28 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6">
             <Link to="/" className="text-gray-700 hover:text-safari-green font-medium transition">Home</Link>
             <Link to="/tours" className="text-gray-700 hover:text-safari-green font-medium transition">Tours</Link>
             <Link to="/halal-tourism" className="text-gray-700 hover:text-safari-green font-medium transition">Halal Tourism</Link>
             <Link to="/destinations" className="text-gray-700 hover:text-safari-green font-medium transition">Destinations</Link>
             <Link to="/contact" className="text-gray-700 hover:text-safari-green font-medium transition">Contact</Link>
-            <Link to="/booking" className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal transition shadow-md">
-              Book Now
-            </Link>
+            
+            {/* Auth Buttons */}
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <Link to="/dashboard" className="text-safari-green font-bold hover:text-safari-teal transition">My Dashboard</Link>
+                <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition">Logout</button>
+              </div>
+            ) : (
+              <Link to="/login" className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal transition shadow-md">Login</Link>
+            )}
+            
+            <Link to="/booking" className="bg-safari-gold text-white px-6 py-2 rounded-full font-bold hover:bg-yellow-600 transition shadow-md">Book Now</Link>
           </div>
 
           {/* Mobile Hamburger Menu Button */}
-          <button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition"
-            aria-label="Toggle menu"
-          >
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition">
             <svg className="w-6 h-6 text-safari-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isMenuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -54,9 +84,18 @@ export default function Navbar() {
               <Link to="/halal-tourism" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Halal Tourism</Link>
               <Link to="/destinations" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Destinations</Link>
               <Link to="/contact" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Contact</Link>
-              <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="bg-safari-green text-white px-6 py-3 rounded-full font-bold hover:bg-safari-teal transition shadow-md text-center mx-2">
-                Book Now
-              </Link>
+              
+              {/* Mobile Auth Buttons */}
+              {user ? (
+                <>
+                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-safari-green font-bold transition px-2">My Dashboard</Link>
+                  <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition mx-2">Logout</button>
+                </>
+              ) : (
+                <Link to="/login" onClick={() => setIsMenuOpen(false)} className="bg-safari-green text-white px-6 py-3 rounded-full font-bold hover:bg-safari-teal transition shadow-md text-center mx-2">Login</Link>
+              )}
+              
+              <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="bg-safari-gold text-white px-6 py-3 rounded-full font-bold hover:bg-yellow-600 transition shadow-md text-center mx-2">Book Now</Link>
             </div>
           </div>
         )}
