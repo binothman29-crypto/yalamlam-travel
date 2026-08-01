@@ -69,6 +69,17 @@ export default function Login() {
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
+          <div className="text-center mt-4">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-medium text-safari-green hover:text-safari-teal">
+                Sign up here
+              </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Admin staff: Use your company email to access the dashboard
+            </p>
+          </div>
         </form>
       </div>
     </div>

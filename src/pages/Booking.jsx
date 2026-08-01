@@ -73,7 +73,8 @@ export default function Booking() {
           accommodation: formData.accommodation,
           activities: formData.activities,
           special_requests: formData.specialRequests,
-          status: 'pending'
+          status: 'pending',
+          user_id: user ? user.id : null
         }
       ]);
 
