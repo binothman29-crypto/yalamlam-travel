@@ -38,7 +38,7 @@ export default function Dashboard() {
 
         <h2 className="text-xl font-bold text-gray-800 mb-4">My Bookings</h2>
         {bookings.length === 0 ? (
-          <p className="text-gray-500">You haven't made any bookings yet.</p>
+          <p className="text-gray-500 bg-white p-6 rounded-xl shadow-md">You haven't made any bookings yet. <a href="/tours" className="text-safari-green font-bold underline">Browse Tours</a></p>
         ) : (
           <div className="space-y-4">
             {bookings.map((booking) => (
@@ -48,14 +48,14 @@ export default function Dashboard() {
                     <h3 className="font-bold text-lg text-safari-green">{booking.destination}</h3>
                     <p className="text-sm text-gray-500">Ref: #YAL-{booking.id.substring(0, 8)}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
                     booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
                     booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
                   }`}>
                     {booking.status}
                   </span>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                   <p><strong>Dates:</strong> {booking.start_date} to {booking.end_date}</p>
                   <p><strong>Guests:</strong> {booking.guests}</p>
                 </div>
