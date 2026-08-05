@@ -8,6 +8,11 @@ export default function TourDetails() {
   const [tour, setTour] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newReview, setNewReview] = useState({ name: '', rating: 5, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     const fetchTour = async () => {
@@ -23,6 +28,20 @@ export default function TourDetails() {
         const images = data.gallery && data.gallery.length > 0 ? data.gallery : [data.image_url];
         setActiveImage(0);
       }
+
+      // Fetch approved reviews for this tour
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('tour_id', tour.id)
+        .eq('is_approved', true)
+        .order('created_at', { ascending: false });
+
+      if (reviewsData && reviewsData.length > 0) {
+        setReviews(reviewsData);
+        const total = reviewsData.reduce((sum, r) => sum + r.rating, 0);
+        setAvgRating((total / reviewsData.length).toFixed(1));
+      }
       setLoading(false);
     };
     fetchTour();
@@ -32,6 +51,27 @@ export default function TourDetails() {
   if (!tour) return <div className="min-h-screen flex items-center justify-center">Tour not found. <Link to="/tours" className="text-safari-green underline">Go back</Link></div>;
 
   const images = tour.gallery && tour.gallery.length > 0 ? tour.gallery : [tour.image_url];
+
+    const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    setSubmittingReview(true);
+    const { error } = await supabase.from('reviews').insert([{
+      tour_id: tour.id,
+      customer_name: newReview.name,
+      rating: parseInt(newReview.rating),
+      comment: newReview.comment,
+      is_approved: false
+    }]);
+
+    if (!error) {
+      alert("JazakAllah Khair! Your review has been submitted and is pending admin approval.");
+      setNewReview({ name: '', rating: 5, comment: '' });
+      setShowReviewForm(false);
+    } else {
+      alert("Error submitting review. Please try again.");
+    }
+    setSubmittingReview(false);
+  };
 
   return (
     <div className="min-h-screen bg-safari-sand py-8 px-4 md:px-8">
@@ -126,6 +166,89 @@ export default function TourDetails() {
             </div>
           </div>
 
+          {/* --- REVIEWS SECTION --- */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-safari-green">Customer Reviews</h2>
+                {reviews.length > 0 && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-yellow-500 text-xl">{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</span>
+                    <span className="text-gray-600 font-medium">{avgRating} out of 5 ({reviews.length} reviews)</span>
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className="bg-safari-gold text-white px-6 py-2 rounded-full font-bold hover:bg-yellow-600 transition"
+              >
+                {showReviewForm ? 'Cancel' : 'Write a Review'}
+              </button>
+            </div>
+
+            {/* Review Form */}
+            {showReviewForm && (
+              <form onSubmit={handleSubmitReview} className="bg-gray-50 p-6 rounded-xl mb-8 space-y-4 border border-gray-200">
+                <h3 className="font-bold text-lg text-gray-800">Share your experience</h3>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="Your Name" 
+                  value={newReview.name}
+                  onChange={(e) => setNewReview({...newReview, name: e.target.value})}
+                  className="w-full p-3 border rounded-lg" 
+                />
+                <div>
+                  <label className="block text-sm font-bold mb-2">Rating</label>
+                  <select 
+                    value={newReview.rating} 
+                    onChange={(e) => setNewReview({...newReview, rating: e.target.value})}
+                    className="w-full p-3 border rounded-lg"
+                  >
+                    <option value="5">★★★★★ (Excellent)</option>
+                    <option value="4">★★★★☆ (Good)</option>
+                    <option value="3">★★★☆☆ (Average)</option>
+                    <option value="2">★★☆☆☆ (Poor)</option>
+                    <option value="1">★☆☆☆☆ (Terrible)</option>
+                  </select>
+                </div>
+                <textarea 
+                  required 
+                  placeholder="Tell us about your trip..." 
+                  rows="3" 
+                  value={newReview.comment}
+                  onChange={(e) => setNewReview({...newReview, comment: e.target.value})}
+                  className="w-full p-3 border rounded-lg" 
+                ></textarea>
+                <button 
+                  type="submit" 
+                  disabled={submittingReview}
+                  className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal disabled:opacity-50"
+                >
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </form>
+            )}
+
+            {/* Reviews List */}
+            {reviews.length === 0 ? (
+              <p className="text-gray-500 italic">No reviews yet. Be the first to share your experience!</p>
+            ) : (
+              <div className="space-y-6">
+                {reviews.map((review) => (
+                  <div key={review.id} className="border-b border-gray-100 pb-6 last:border-0 last:pb-0">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-bold text-gray-800">{review.customer_name}</h4>
+                      <span className="text-yellow-500">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-1">{new Date(review.created_at).toLocaleDateString()}</p>
+                    <p className="text-gray-700">{review.comment}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Right Column: Booking Card (Sticky) */}
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-2xl shadow-lg sticky top-24">
@@ -152,7 +275,7 @@ export default function TourDetails() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-safari-green">🛡️</span> 
-                  <span>Free cancellation up to 48h before</span>
+                  <span>Free cancellation up to 48h hours</span>
                 </div>
               </div>
             </div>
