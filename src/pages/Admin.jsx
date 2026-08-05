@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 
 // ⚠️ EmailJS Configuration
-  const EMAILJS_SERVICE_ID = 'yalamlam_smtp'; 
-  const EMAILJS_TEMPLATE_ID = 'template_oibiz3z'; 
-  const EMAILJS_PUBLIC_KEY = 'user_9hNXFaXZnQiRVgtyx';
+const EMAILJS_SERVICE_ID = 'yalamlam_smtp'; 
+const EMAILJS_TEMPLATE_ID = 'template_oibiz3z'; 
+const EMAILJS_PUBLIC_KEY = 'user_9hNXFaXZnQiRVgtyx';
 
 export default function Admin() {
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // For RBAC
   const [isStaff, setIsStaff] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
   
@@ -22,10 +23,10 @@ export default function Admin() {
   const [editingBooking, setEditingBooking] = useState(null);
   const [bookingForm, setBookingForm] = useState({});
   
-  // Tour Form State
+  // Tour Form State (Updated to match DB schema: included, excluded, gallery, itinerary)
   const [newTour, setNewTour] = useState({
     title: '', location: '', category: '', price: '', duration: '', 
-    image_url: '', description: '', inclusions: '', exclusions: '', itinerary: '', is_halal: true
+    image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true
   });
   const [editingTour, setEditingTour] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -42,14 +43,13 @@ export default function Admin() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        // Check if this user is in the staff table
         const { data: staffData } = await supabase.from('staff').select('*').eq('email', user.email).single();
         if (staffData) {
           setIsStaff(true);
+          setUserRole(staffData.role || 'staff'); // Capture role for RBAC
           fetchData();
           fetchStaff();
         } else {
-          // If they are logged in but not in the staff table, kick them out
           alert("Access Denied: Your account is not authorized to view this dashboard.");
           await supabase.auth.signOut();
           navigate('/login');
@@ -84,8 +84,29 @@ export default function Admin() {
   };
 
   const updateStatus = async (id, newStatus) => {
-    await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
-    fetchData();
+    try {
+      const { data: bookingData } = await supabase.from('bookings').select('*').eq('id', id).single();
+      await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
+      
+      if (newStatus === 'confirmed' && bookingData) {
+        const templateParams = {
+          to_email: bookingData.email,
+          first_name: bookingData.first_name,
+          destination: bookingData.destination,
+          start_date: bookingData.start_date,
+          end_date: bookingData.end_date,
+          guests: bookingData.guests,
+          booking_id: `YAL-${bookingData.id}`
+        };
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+        alert("✅ Booking confirmed and email sent!");
+      } else {
+        alert("Status updated!");
+      }
+      fetchData();
+    } catch (error) {
+      alert("Error: " + error.message);
+    }
   };
 
   const updatePaymentStatus = async (id, newPaymentStatus) => {
@@ -126,10 +147,11 @@ export default function Admin() {
   const handleAddStaff = async (e) => {
     e.preventDefault();
     try {
-      // We use the user's auth ID to link them securely
-      // Note: In a real app, you'd search for the user ID by email, but for simplicity, 
-      // we will just store the email and check it on login (as done in checkUser).
-      const { error } = await supabase.from('staff').insert([{ email: newStaffEmail, full_name: newStaffName }]);
+      const { error } = await supabase.from('staff').insert([{ 
+        email: newStaffEmail, 
+        full_name: newStaffName,
+        role: 'staff' 
+      }]);
       if (error) throw error;
       
       alert("Staff member added successfully! They can now log in.");
@@ -158,12 +180,19 @@ export default function Admin() {
     setEditingTour(tour);
     setImageFile(null); 
     setNewTour({
-      title: tour.title || '', location: tour.location || '', category: tour.category || '',
-      price: tour.price || '', duration: tour.duration || '', image_url: tour.image_url || '',
+      title: tour.title || '', 
+      location: tour.location || '', 
+      category: tour.category || '',
+      price: tour.price || '', 
+      duration: tour.duration || '', 
+      image_url: tour.image_url || '',
       description: tour.description || '',
-      inclusions: tour.inclusions ? tour.inclusions.join(', ') : '',
-      exclusions: tour.exclusions ? tour.exclusions.join(', ') : '',
-      itinerary: tour.itinerary || '',
+      // Convert arrays from DB back to comma-separated strings for the form
+      included: tour.included ? tour.included.join(', ') : '',
+      excluded: tour.excluded ? tour.excluded.join(', ') : '',
+      gallery: tour.gallery ? tour.gallery.join(', ') : '',
+      // Convert itinerary array to newline-separated string
+      itinerary: tour.itinerary ? (Array.isArray(tour.itinerary) ? tour.itinerary.join('\n') : tour.itinerary) : '',
       is_halal: tour.is_halal !== undefined ? tour.is_halal : true
     });
   };
@@ -181,14 +210,25 @@ export default function Admin() {
         finalImageUrl = data.publicUrl;
       }
 
-      const inclusionsArray = newTour.inclusions.split(',').map(item => item.trim()).filter(item => item !== '');
-      const exclusionsArray = newTour.exclusions.split(',').map(item => item.trim()).filter(item => item !== '');
+      // Convert comma/newline separated strings back to arrays for the database
+      const includedArray = newTour.included.split(',').map(item => item.trim()).filter(item => item !== '');
+      const excludedArray = newTour.excluded.split(',').map(item => item.trim()).filter(item => item !== '');
+      const galleryArray = newTour.gallery.split(',').map(item => item.trim()).filter(item => item !== '');
+      const itineraryArray = newTour.itinerary.split('\n').map(item => item.trim()).filter(item => item !== '');
 
       const tourData = {
-        title: newTour.title, location: newTour.location, category: newTour.category,
-        price: Number(newTour.price), duration: newTour.duration, image_url: finalImageUrl,
-        description: newTour.description, inclusions: inclusionsArray, exclusions: exclusionsArray, 
-        itinerary: newTour.itinerary, is_halal: newTour.is_halal
+        title: newTour.title, 
+        location: newTour.location, 
+        category: newTour.category,
+        price: Number(newTour.price), 
+        duration: newTour.duration, 
+        image_url: finalImageUrl,
+        description: newTour.description, 
+        included: includedArray, 
+        excluded: excludedArray,
+        gallery: galleryArray,
+        itinerary: itineraryArray, 
+        is_halal: newTour.is_halal
       };
 
       if (editingTour) {
@@ -197,7 +237,7 @@ export default function Admin() {
         await supabase.from('tours').insert([tourData]);
       }
 
-      setNewTour({ title: '', location: '', category: '', price: '', duration: '', image_url: '', description: '', inclusions: '', exclusions: '', itinerary: '', is_halal: true });
+      setNewTour({ title: '', location: '', category: '', price: '', duration: '', image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true });
       setImageFile(null);
       setEditingTour(null);
       fetchData();
@@ -225,7 +265,7 @@ export default function Admin() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-white p-6 rounded-xl shadow-sm gap-4">
           <div>
             <h1 className="text-2xl font-bold text-safari-green">Yalamlam Staff Dashboard</h1>
-            <p className="text-gray-500 text-sm">Welcome back, {user.email}</p>
+            <p className="text-gray-500 text-sm">Welcome back, {user.email} ({userRole})</p>
           </div>
           <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition w-full md:w-auto">Logout</button>
         </div>
@@ -234,8 +274,14 @@ export default function Admin() {
         <div className="flex flex-wrap gap-2 md:gap-4 mb-6">
           <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'bookings' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Bookings ({bookings.length})</button>
           <button onClick={() => setActiveTab('contacts')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'contacts' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Messages ({contacts.length})</button>
-          <button onClick={() => setActiveTab('tours')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'tours' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Tours</button>
-          <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'team' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Team Management</button>
+          
+          {/* ROLE-BASED ACCESS: Only Admins see these tabs */}
+          {userRole === 'admin' && (
+            <>
+              <button onClick={() => setActiveTab('tours')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'tours' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Tours</button>
+              <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'team' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Team Management</button>
+            </>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm overflow-hidden p-6">
@@ -268,12 +314,11 @@ export default function Admin() {
                       </td>
                       <td className="p-4 flex flex-col gap-2">
                         <div className="flex gap-2">
-                          <button onClick={() => openEditBooking(booking)} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-sx font-bold hover:bg-blue-200 ">Edit</button>
+                          <button onClick={() => openEditBooking(booking)} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold hover:bg-blue-200 ">Edit</button>
                           {booking.status === 'pending' && (
                             <button onClick={() => updateStatus(booking.id, 'confirmed')} className="text-safari-green font-bold hover:underline text-xs">Confirm</button>
                           )}
                         </div>
-                        {/* Payment Buttons */}
                         <div className="flex flex-wrap gap-1 mt-1">
                           {booking.payment_status !== 'deposit_paid' && (
                             <button onClick={() => updatePaymentStatus(booking.id, 'deposit_paid')} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded hover:bg-yellow-200">Mark Deposit</button>
@@ -324,8 +369,8 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- TOURS TAB --- */}
-          {activeTab === 'tours' && (
+          {/* --- TOURS TAB (ADMIN ONLY) --- */}
+          {activeTab === 'tours' && userRole === 'admin' && (
             <div>
               <h2 className="text-xl font-bold text-safari-green mb-4">{editingTour ? 'Edit Tour' : 'Add New Tour'}</h2>
               <form onSubmit={handleTourSubmit} className="space-y-4 mb-8 bg-gray-50 p-6 rounded-lg">
@@ -340,26 +385,41 @@ export default function Admin() {
                     <option value="Kilimanjaro">Kilimanjaro</option>
                   </select>
                   <input type="number" name="price" value={newTour.price} onChange={handleTourChange} placeholder="Price (USD)" required className="p-3 border rounded-lg w-full" />
-                  <input type="text" name="duration" value={newTour.duration} onChange={handleTourChange} placeholder="Duration" className="p-3 border rounded-lg w-full" />
+                  <input type="text" name="duration" value={newTour.duration} onChange={handleTourChange} placeholder="Duration (e.g., 3 Days)" className="p-3 border rounded-lg w-full" />
                   <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} className="p-3 border rounded-lg w-full bg-white" />
                 </div>
-                <textarea name="description" value={newTour.description} onChange={handleTourChange} placeholder="Description" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                <textarea name="description" value={newTour.description} onChange={handleTourChange} placeholder="Short Description" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                
+                {/* NEW ADVANCED FIELDS */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  <textarea name="inclusions" value={newTour.inclusions} onChange={handleTourChange} placeholder="Inclusions (comma separated)" rows="2" className="p-3 border rounded-lg w-full"></textarea>
-                  <textarea name="exclusions" value={newTour.exclusions} onChange={handleTourChange} placeholder="Exclusions (comma separated)" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">What's Included (comma separated)</label>
+                    <textarea name="included" value={newTour.included} onChange={handleTourChange} placeholder="e.g. Breakfast, Guide, Transport" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">What's Excluded (comma separated)</label>
+                    <textarea name="excluded" value={newTour.excluded} onChange={handleTourChange} placeholder="e.g. Flights, Tips, Personal Expenses" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                  </div>
                 </div>
-                <textarea name="itinerary" value={newTour.itinerary} onChange={handleTourChange} placeholder="Itinerary (one day per line)" rows="3" className="p-3 border rounded-lg w-full"></textarea>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Image Gallery URLs (comma separated)</label>
+                  <input type="text" name="gallery" value={newTour.gallery} onChange={handleTourChange} placeholder="https://..., https://..." className="p-3 border rounded-lg w-full" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">Day-by-Day Itinerary (one day per line)</label>
+                  <textarea name="itinerary" value={newTour.itinerary} onChange={handleTourChange} placeholder="Day 1: Arrival&#10;Day 2: Safari" rows="4" className="p-3 border rounded-lg w-full font-mono text-sm"></textarea>
+                </div>
                 
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2">
                     <input type="checkbox" name="is_halal" checked={newTour.is_halal} onChange={handleTourChange} className="h-5 w-5" />
-                    <span className="text-sm">100% Halal Certified</span>
+                    <span className="text-sm font-bold">100% Halal Certified</span>
                   </label>
                   <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition">
                     {editingTour ? 'Update Tour' : 'Add Tour'}
                   </button>
                 </div>
-                {editingTour && <button type="button" onClick={() => { setEditingTour(null); setNewTour({ title: '', location: '', category: '', price: '', duration: '', image_url: '', description: '', inclusions: '', exclusions: '', itinerary: '', is_halal: true }); }} className="text-red-500 text-sm hover:underline">Cancel Edit</button>}
+                {editingTour && <button type="button" onClick={() => { setEditingTour(null); setNewTour({ title: '', location: '', category: '', price: '', duration: '', image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true }); }} className="text-red-500 text-sm hover:underline mt-2">Cancel Edit</button>}
               </form>
 
               <h3 className="text-lg font-bold text-gray-700 mb-4">All Tours</h3>
@@ -385,8 +445,8 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- TEAM TAB --- */}
-          {activeTab === 'team' && (
+          {/* --- TEAM TAB (ADMIN ONLY) --- */}
+          {activeTab === 'team' && userRole === 'admin' && (
             <div>
               <h2 className="text-xl font-bold text-safari-green mb-4">Manage Staff Access</h2>
               <p className="text-gray-600 mb-6 text-sm">
@@ -411,7 +471,7 @@ export default function Admin() {
                       <tr key={member.email} className="hover:bg-gray-50">
                         <td className="p-4 font-bold">{member.full_name || 'Unknown'}</td>
                         <td className="p-4">{member.email}</td>
-                        <td className="p-4 capitalize">{member.role}</td>
+                        <td className="p-4 capitalize">{member.role || 'staff'}</td>
                         <td className="p-4">
                           {member.email !== user.email && (
                             <button onClick={() => handleRemoveStaff(member.email)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Remove</button>
@@ -427,6 +487,7 @@ export default function Admin() {
 
         </div>
       </div>
+
       {/* Edit Booking Modal */}
       {editingBooking && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
