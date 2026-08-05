@@ -14,7 +14,7 @@ export default function Footer() {
             <span className="text-xs text-safari-gold italic block mt-1">Where Faith Meets Travel Excellence</span>
           </div>
         </div>
-          <p className="text-gray-300">Connecting the world to Africa's wildlife through the lens of Islamic values.</p>
+          <p className="text-gray-300">Your Trusted Partner for Halal Travel Experiences & Tanzania Safaris.</p>
         </div>
         <div>
           <h3 className="font-bold text-lg mb-4 text-safari-gold">Quick Links</h3>
@@ -22,20 +22,22 @@ export default function Footer() {
             <li><a href="#" className="hover:text-white">Zanzibar Tours</a></li>
             <li><a href="#" className="hover:text-white">Tanzania Safaris</a></li>
             <li><a href="#" className="hover:text-white">Halal Packages</a></li>
+            <li><a href="#" className="hover:text-white">Hotel Booking</a></li>
+            <li><a href="#" className="hover:text-white">Airport Transfers</a></li>
           </ul>
         </div>
         <div>
           <h3 className="font-bold text-lg mb-4 text-safari-gold">Contact Us</h3>
           <ul className="space-y-2 text-gray-300">
             <li>Email: info@yalamlamtravel.com</li>
-            <li>WhatsApp: +255 778 265 758</li>
-            <li>WhatsApp: +255 773 348 401</li>
-            <li>WhatsApp: +255 715 869 725</li>
+            <li>Reservations: +255 778 265 758</li>
+            <li>Zanzibar Office: +255 773 348 401</li>
+            <li>Customer Support: +255 715 869 725</li>
           </ul>
         </div>
       </div>
       <div className="max-w-7xl mx-auto mt-8 pt-8 border-t border-safari-teal text-center text-gray-400">
-        <p>&copy; 2026 Yalamlam Travel & Tours. All rights reserved.</p>
+        <p>&copy; 2026 Yalamlam Travel & Tours. All Rights Reserved.</p>
       </div>
     </footer>
   );

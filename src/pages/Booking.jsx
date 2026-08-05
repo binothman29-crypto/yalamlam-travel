@@ -51,6 +51,7 @@ export default function Booking() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { data: { user } } = await supabase.auth.getUser();
     setIsSubmitting(true);
 
     try {

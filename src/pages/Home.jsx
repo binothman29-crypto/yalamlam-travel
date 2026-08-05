@@ -12,7 +12,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="relative z-10 text-center text-white max-w-4xl px-4">
           <span className="inline-block bg-safari-gold text-safari-green px-4 py-1 rounded-full text-sm font-bold mb-4 uppercase tracking-wide">
-            100% Muslim-Friendly & Halal Certified
+            100% Muslim-Friendly Travel & Halal Safaris 
           </span>
           <h1 className="text-4xl md:text-6xl font-heading font-bold mb-6 leading-tight">
             Experience the Wild, <br/> <span className="text-safari-gold">Without Compromising Your Faith</span>

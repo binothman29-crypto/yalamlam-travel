@@ -12,6 +12,7 @@ import Admin from './pages/Admin';
 import TourDetails from './pages/TourDetails';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/tours/:id" element={<TourDetails />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </main>
 
