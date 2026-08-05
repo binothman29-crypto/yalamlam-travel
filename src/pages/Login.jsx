@@ -14,7 +14,8 @@ export default function Login() {
     setLoading(true);
     setError('');
 
-    const { error } = await supabase.auth.signInWithPassword({
+    // 1. Try to log the user in
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
@@ -23,7 +24,19 @@ export default function Login() {
       setError('Invalid email or password. Please try again.');
       setLoading(false);
     } else {
-      navigate('/admin'); // Go to admin dashboard on success
+      // 2. Check if this user is in the 'staff' table
+      const { data: staffData } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      // 3. Route them to the correct dashboard
+      if (staffData) {
+        navigate('/admin'); // Staff/Admin goes here
+      } else {
+        navigate('/dashboard'); // Regular customer goes here
+      }
     }
   };
 
@@ -31,8 +44,8 @@ export default function Login() {
     <div className="min-h-screen bg-safari-sand flex items-center justify-center px-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-heading font-bold text-safari-green">Admin Login</h1>
-          <p className="text-gray-500 mt-2">Yalamlam Travel & Tours Back Office</p>
+          <h1 className="text-3xl font-heading font-bold text-safari-green">Login</h1>
+          <p className="text-gray-500 mt-2">Yalamlam Travel & Tours</p>
         </div>
 
         {error && (
@@ -77,7 +90,7 @@ export default function Login() {
               </Link>
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              Admin staff: Use your company email to access the dashboard
+              Staff: Use your company email to access the admin panel
             </p>
           </div>
         </form>
