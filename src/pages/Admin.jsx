@@ -87,6 +87,55 @@ export default function Admin() {
     navigate('/login');
   };
 
+    const sendUpcomingReminders = async () => {
+    if (!window.confirm("Send reminder emails to all customers with tours in the next 48 hours?")) return;
+
+    // Calculate today and 2 days from now
+    const today = new Date().toISOString().split('T')[0];
+    const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Fetch upcoming confirmed bookings
+    const { data: upcomingBookings, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('status', 'confirmed')
+      .gte('start_date', today)
+      .lte('start_date', twoDaysFromNow);
+
+    if (error) {
+      alert("Error fetching bookings: " + error.message);
+      return;
+    }
+
+    if (!upcomingBookings || upcomingBookings.length === 0) {
+      alert("No upcoming tours in the next 48 hours.");
+      return;
+    }
+
+    let successCount = 0;
+    // Loop through and send emails
+    for (const booking of upcomingBookings) {
+      try {
+        await emailjs.send(
+          'yalamlam_smtp', 
+          'template_nlcb9zr', // ⚠️ REPLACE THIS with your actual Reminder Template ID!
+          {
+            to_email: booking.email,
+            first_name: booking.first_name,
+            destination: booking.destination,
+            start_date: booking.start_date
+          },
+          'user_9hNXFaXZnQiRVgtyx'
+        );
+        successCount++;
+      } catch (err) {
+        console.error("Failed to send to", booking.email, err);
+      }
+    }
+
+    alert(`✅ Successfully sent reminders to ${successCount} customer(s)!`);
+  };
+
   const updateStatus = async (id, newStatus) => {
     try {
       const { data: bookingData } = await supabase.from('bookings').select('*').eq('id', id).single();
@@ -306,6 +355,15 @@ export default function Admin() {
           {activeTab === 'bookings' && (
             <div className="overflow-x-auto">
               <h2 className="text-xl font-bold text-safari-green mb-4">Customer Bookings</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-safari-green">Customer Bookings</h2>
+                <button 
+                  onClick={sendUpcomingReminders}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition flex items-center gap-2"
+                >
+                  🔔 Send 48h Reminders
+                </button>
+              </div>
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
                   <tr>
