@@ -13,6 +13,7 @@ export default function Admin() {
   const [userRole, setUserRole] = useState(null); // For RBAC
   const [isStaff, setIsStaff] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [reviews, setReviews] = useState([]);
   
   const [bookings, setBookings] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -71,6 +72,9 @@ export default function Admin() {
     
     const { data: contactsData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
     setContacts(contactsData || []);
+    
+    const { data: reviewsData } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    setReviews(reviewsData || []);
   };
 
   const fetchStaff = async () => {
@@ -248,6 +252,18 @@ export default function Admin() {
     }
   };
 
+    const handleApproveReview = async (id) => {
+    await supabase.from('reviews').update({ is_approved: true }).eq('id', id);
+    fetchData();
+  };
+
+  const handleDeleteReview = async (id) => {
+    if (window.confirm("Delete this review permanently?")) {
+      await supabase.from('reviews').delete().eq('id', id);
+      fetchData();
+    }
+  };
+
   const handleDeleteTour = async (id) => {
     if (window.confirm("Are you sure you want to delete this tour?")) {
       await supabase.from('tours').delete().eq('id', id);
@@ -274,7 +290,7 @@ export default function Admin() {
         <div className="flex flex-wrap gap-2 md:gap-4 mb-6">
           <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'bookings' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Bookings ({bookings.length})</button>
           <button onClick={() => setActiveTab('contacts')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'contacts' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Messages ({contacts.length})</button>
-          
+          <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'reviews' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Reviews ({reviews.length})</button>
           {/* ROLE-BASED ACCESS: Only Admins see these tabs */}
           {userRole === 'admin' && (
             <>
@@ -369,6 +385,49 @@ export default function Admin() {
             </div>
           )}
 
+          {/* --- REVIEWS TAB --- */}
+          {activeTab === 'reviews' && userRole === 'admin' && (
+            <div className="overflow-x-auto">
+              <h2 className="text-xl font-bold text-safari-green mb-4">Manage Customer Reviews</h2>
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
+                  <tr>
+                    <th className="p-4">Date</th>
+                    <th className="p-4">Customer</th>
+                    <th className="p-4">Tour</th>
+                    <th className="p-4">Rating</th>
+                    <th className="p-4">Comment</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm">
+                  {reviews.map(review => (
+                    <tr key={review.id} className="hover:bg-gray-50">
+                      <td className="p-4 text-gray-500">{new Date(review.created_at).toLocaleDateString()}</td>
+                      <td className="p-4 font-bold">{review.customer_name}</td>
+                      <td className="p-4 text-gray-600">{review.tours?.title || 'Unknown Tour'}</td>
+                      <td className="p-4 text-yellow-500 font-bold">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</td>
+                      <td className="p-4 text-gray-700 max-w-xs truncate">{review.comment}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${review.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {review.is_approved ? 'Approved' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-4 flex gap-2">
+                        {!review.is_approved && (
+                          <button onClick={() => handleApproveReview(review.id)} className="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold hover:bg-green-200">Approve</button>
+                        )}
+                        <button onClick={() => handleDeleteReview(review.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {reviews.length === 0 && <p className="p-8 text-center text-gray-500">No reviews yet.</p>}
+            </div>
+          )}
+
           {/* --- TOURS TAB (ADMIN ONLY) --- */}
           {activeTab === 'tours' && userRole === 'admin' && (
             <div>
@@ -413,7 +472,7 @@ export default function Admin() {
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2">
                     <input type="checkbox" name="is_halal" checked={newTour.is_halal} onChange={handleTourChange} className="h-5 w-5" />
-                    <span className="text-sm font-bold">100% Halal Certified</span>
+                    <span className="text-sm font-bold">100% Halal Friendly</span>
                   </label>
                   <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition">
                     {editingTour ? 'Update Tour' : 'Add Tour'}
