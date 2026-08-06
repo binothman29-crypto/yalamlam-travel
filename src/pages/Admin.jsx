@@ -73,7 +73,8 @@ export default function Admin() {
     const { data: contactsData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
     setContacts(contactsData || []);
     
-    const { data: reviewsData } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    // Added tours(title) so we can display the tour name in the reviews tab
+    const { data: reviewsData } = await supabase.from('reviews').select('*, tours(title)').order('created_at', { ascending: false });
     setReviews(reviewsData || []);
   };
 
@@ -87,14 +88,12 @@ export default function Admin() {
     navigate('/login');
   };
 
-    const sendUpcomingReminders = async () => {
+  const sendUpcomingReminders = async () => {
     if (!window.confirm("Send reminder emails to all customers with tours in the next 48 hours?")) return;
 
-    // Calculate today and 2 days from now
     const today = new Date().toISOString().split('T')[0];
     const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Fetch upcoming confirmed bookings
     const { data: upcomingBookings, error } = await supabase
       .from('bookings')
       .select('*')
@@ -113,12 +112,11 @@ export default function Admin() {
     }
 
     let successCount = 0;
-    // Loop through and send emails
     for (const booking of upcomingBookings) {
       try {
         await emailjs.send(
           'yalamlam_smtp', 
-          'template_nlcb9zr', // ⚠️ REPLACE THIS with your actual Reminder Template ID!
+          'template_nlcb9zr', // ⚠️ Ensure this is your actual Reminder Template ID!
           {
             to_email: booking.email,
             first_name: booking.first_name,
@@ -240,11 +238,9 @@ export default function Admin() {
       duration: tour.duration || '', 
       image_url: tour.image_url || '',
       description: tour.description || '',
-      // Convert arrays from DB back to comma-separated strings for the form
       included: tour.included ? tour.included.join(', ') : '',
       excluded: tour.excluded ? tour.excluded.join(', ') : '',
       gallery: tour.gallery ? tour.gallery.join(', ') : '',
-      // Convert itinerary array to newline-separated string
       itinerary: tour.itinerary ? (Array.isArray(tour.itinerary) ? tour.itinerary.join('\n') : tour.itinerary) : '',
       is_halal: tour.is_halal !== undefined ? tour.is_halal : true
     });
@@ -263,7 +259,6 @@ export default function Admin() {
         finalImageUrl = data.publicUrl;
       }
 
-      // Convert comma/newline separated strings back to arrays for the database
       const includedArray = newTour.included.split(',').map(item => item.trim()).filter(item => item !== '');
       const excludedArray = newTour.excluded.split(',').map(item => item.trim()).filter(item => item !== '');
       const galleryArray = newTour.gallery.split(',').map(item => item.trim()).filter(item => item !== '');
@@ -301,7 +296,7 @@ export default function Admin() {
     }
   };
 
-    const handleApproveReview = async (id) => {
+  const handleApproveReview = async (id) => {
     await supabase.from('reviews').update({ is_approved: true }).eq('id', id);
     fetchData();
   };
@@ -319,6 +314,22 @@ export default function Admin() {
       fetchData();
     }
   };
+
+  // --- ANALYTICS CALCULATIONS ---
+  const totalBookings = bookings.length;
+  const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
+  const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+  const cancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
+  const totalContacts = contacts.length;
+
+  const destinationCounts = {};
+  bookings.forEach(booking => {
+    destinationCounts[booking.destination] = (destinationCounts[booking.destination] || 0) + 1;
+  });
+  
+  const topDestinations = Object.entries(destinationCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   if (loadingAuth) return <div className="min-h-screen flex items-center justify-center">Checking access...</div>;
   if (!isStaff) return null;
@@ -339,8 +350,13 @@ export default function Admin() {
         <div className="flex flex-wrap gap-2 md:gap-4 mb-6">
           <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'bookings' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Bookings ({bookings.length})</button>
           <button onClick={() => setActiveTab('contacts')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'contacts' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Messages ({contacts.length})</button>
-          <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'reviews' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Reviews ({reviews.length})</button>
-          {/* ROLE-BASED ACCESS: Only Admins see these tabs */}
+          <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'reviews' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Reviews ({reviews.filter(r => !r.is_approved).length} Pending)</button>
+          
+          {/* NEW: Analytics Tab (Admin Only) */}
+          {userRole === 'admin' && (
+            <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'analytics' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>📊 Analytics</button>
+          )}
+
           {userRole === 'admin' && (
             <>
               <button onClick={() => setActiveTab('tours')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'tours' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Tours</button>
@@ -485,6 +501,100 @@ export default function Admin() {
             </div>
           )}
 
+          {/* --- ANALYTICS TAB (ADMIN ONLY) --- */}
+          {activeTab === 'analytics' && userRole === 'admin' && (
+            <div className="space-y-8">
+              <h2 className="text-2xl font-bold text-safari-green">Business Overview</h2>
+              
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
+                  <p className="text-gray-500 text-sm font-medium uppercase">Total Bookings</p>
+                  <p className="text-4xl font-bold text-gray-800 mt-2">{totalBookings}</p>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500">
+                  <p className="text-gray-500 text-sm font-medium uppercase">Confirmed</p>
+                  <p className="text-4xl font-bold text-green-600 mt-2">{confirmedBookings}</p>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-yellow-500">
+                  <p className="text-gray-500 text-sm font-medium uppercase">Pending</p>
+                  <p className="text-4xl font-bold text-yellow-600 mt-2">{pendingBookings}</p>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-purple-500">
+                  <p className="text-gray-500 text-sm font-medium uppercase">New Messages</p>
+                  <p className="text-4xl font-bold text-purple-600 mt-2">{totalContacts}</p>
+                </div>
+              </div>
+
+              {/* Top Destinations & Quick Insights */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Top Destinations Chart */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm">
+                  <h3 className="text-lg font-bold text-gray-800 mb-6">Top Destinations</h3>
+                  {topDestinations.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No booking data yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {topDestinations.map(([dest, count], index) => {
+                        const percentage = totalBookings > 0 ? Math.round((count / totalBookings) * 100) : 0;
+                        return (
+                          <div key={dest}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="font-medium text-gray-700">{dest}</span>
+                              <span className="text-gray-500">{count} bookings ({percentage}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-3">
+                              <div 
+                                className="bg-safari-green h-3 rounded-full transition-all duration-500" 
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Actions / Insights */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm">
+                  <h3 className="text-lg font-bold text-gray-800 mb-6">Quick Insights</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl">
+                      <span className="text-2xl">📈</span>
+                      <div>
+                        <p className="font-bold text-gray-800">Conversion Rate</p>
+                        <p className="text-sm text-gray-600">
+                          {totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0}% of all bookings are confirmed.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start gap-4 p-4 bg-yellow-50 rounded-xl">
+                      <span className="text-2xl">⏳</span>
+                      <div>
+                        <p className="font-bold text-gray-800">Action Required</p>
+                        <p className="text-sm text-gray-600">
+                          You have {pendingBookings} pending booking(s) waiting for confirmation.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl">
+                      <span className="text-2xl">✅</span>
+                      <div>
+                        <p className="font-bold text-gray-800">System Health</p>
+                        <p className="text-sm text-gray-600">
+                          All systems operational. Automated emails are active.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* --- TOURS TAB (ADMIN ONLY) --- */}
           {activeTab === 'tours' && userRole === 'admin' && (
             <div>
@@ -506,7 +616,6 @@ export default function Admin() {
                 </div>
                 <textarea name="description" value={newTour.description} onChange={handleTourChange} placeholder="Short Description" rows="2" className="p-3 border rounded-lg w-full"></textarea>
                 
-                {/* NEW ADVANCED FIELDS */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">What's Included (comma separated)</label>
