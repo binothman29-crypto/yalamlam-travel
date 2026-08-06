@@ -27,6 +27,11 @@ export default function Footer() {
           </ul>
         </div>
         <div>
+        <Link to="/legal/terms" className="text-gray-400 hover:text-safari-gold transition text-sm">Terms & Conditions</Link>
+        <Link to="/legal/privacy" className="text-gray-400 hover:text-safari-gold transition text-sm">Privacy Policy</Link>
+        <Link to="/legal/cancellation" className="text-gray-400 hover:text-safari-gold transition text-sm">Cancellation Policy</Link>
+        </div>
+        <div>
           <h3 className="font-bold text-lg mb-4 text-safari-gold">Contact Us</h3>
           <ul className="space-y-2 text-gray-300">
             <li>Email: info@yalamlamtravel.com</li>

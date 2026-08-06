@@ -354,7 +354,6 @@ export default function Admin() {
           {/* --- BOOKINGS TAB --- */}
           {activeTab === 'bookings' && (
             <div className="overflow-x-auto">
-              <h2 className="text-xl font-bold text-safari-green mb-4">Customer Bookings</h2>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-safari-green">Customer Bookings</h2>
                 <button 

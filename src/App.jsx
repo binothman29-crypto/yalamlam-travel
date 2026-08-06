@@ -13,6 +13,7 @@ import TourDetails from './pages/TourDetails';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Legal from './pages/Legal';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/tours/:id" element={<TourDetails />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/legal/:type" element={<Legal />} />
         </Routes>
       </main>
 
