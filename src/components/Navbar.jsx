@@ -8,7 +8,7 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const navigate = useNavigate();
-  const { lang, changeLanguage, isRTL } = useLanguage();
+  const { lang, changeLanguage } = useLanguage();
 
   useEffect(() => {
     const getUser = async () => {
@@ -31,12 +31,15 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
 
+  // Clean Flag Emojis
   const languages = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
     { code: 'ar', name: 'العربية', flag: '🇸🇦' },
-    { code: 'fr', name: 'Français', flag: '🇷' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
     { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
   ];
+
+  const currentLang = languages.find(l => l.code === lang);
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
@@ -63,13 +66,10 @@ export default function Navbar() {
             <div className="relative">
               <button 
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition border border-gray-200"
               >
-                <span className="text-xl">{languages.find(l => l.code === lang)?.flag}</span>
-                <span className="text-sm font-medium">{languages.find(l => l.code === lang)?.name}</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <span className="text-xl">{currentLang?.flag}</span>
+                <span className="text-sm font-medium text-gray-700">{currentLang?.name}</span>
               </button>
               
               {showLangMenu && (
@@ -127,7 +127,7 @@ export default function Navbar() {
               
               {/* Mobile Language Switcher */}
               <div className="px-2 pt-2 border-t border-gray-200">
-                <p className="text-xs font-bold text-gray-500 mb-2">LANGUAGE / اللغة</p>
+                <p className="text-xs font-bold text-gray-500 mb-2">SELECT LANGUAGE</p>
                 <div className="flex flex-wrap gap-2">
                   {languages.map((language) => (
                     <button
