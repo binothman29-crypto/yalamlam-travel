@@ -2,41 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Safari Theme Colors */
+:root {
+  --safari-green: #1e5631;
+  --safari-teal: #2d7a4e;
+  --safari-gold: #d4af37;
+  --safari-sand: #f5f1e8;
+}
+
+/* Base Styles */
 body {
+  @apply font-body text-safari-green bg-safari-sand;
+}
+
+.font-heading {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-body {
   font-family: 'Inter', sans-serif;
-  background-color: #F4F1EA;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out;
-}
-
-/* RTL Support */
+/* RTL Support - Improved */
 [dir="rtl"] {
   text-align: right;
 }
 
-[dir="rtl"] .text-left {
-  text-align: right;
-}
-
-[dir="rtl"] .text-right {
-  text-align: left;
-}
-
-[dir="rtl"] .flex {
+/* Fix navbar flex direction for RTL */
+[dir="rtl"] .flex.justify-between {
   flex-direction: row-reverse;
 }
 
-[dir="rtl"] .space-x-2 > * + * {
-  margin-left: 0;
-  margin-right: 0.5rem;
-}
-
+/* Fix spacing for RTL */
 [dir="rtl"] .space-x-3 > * + * {
   margin-left: 0;
   margin-right: 0.75rem;
@@ -52,6 +49,12 @@ body {
   margin-right: 1.5rem;
 }
 
+[dir="rtl"] .space-x-8 > * + * {
+  margin-left: 0;
+  margin-right: 2rem;
+}
+
+/* Fix margins for RTL */
 [dir="rtl"] .ml-2 {
   margin-left: 0;
   margin-right: 0.5rem;
@@ -67,9 +70,14 @@ body {
   margin-left: 0.5rem;
 }
 
-[dir="rtl"] .pl-4 {
+[dir="rtl"] .-mt-1 {
+  margin-top: -0.25rem;
+}
+
+/* Fix padding for RTL */
+[dir="rtl"] .pl-10 {
   padding-left: 0;
-  padding-right: 1rem;
+  padding-right: 2.5rem;
 }
 
 [dir="rtl"] .pr-4 {
@@ -77,6 +85,12 @@ body {
   padding-left: 1rem;
 }
 
+[dir="rtl"] .pl-4 {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+/* Fix absolute positioning for RTL */
 [dir="rtl"] .left-4 {
   left: auto;
   right: 1rem;
@@ -85,4 +99,59 @@ body {
 [dir="rtl"] .right-4 {
   right: auto;
   left: 1rem;
+}
+
+[dir="rtl"] .left-3 {
+  left: auto;
+  right: 0.75rem;
+}
+
+/* Dropdown positioning for RTL */
+[dir="rtl"] .absolute.right-0 {
+  right: auto;
+  left: 0;
+}
+
+/* Text alignment fixes */
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+/* Grid fixes for RTL */
+[dir="rtl"] .grid-cols-1 {
+  /* No change needed */
+}
+
+/* Hero section text centering should remain center */
+[dir="rtl"] .text-center {
+  text-align: center;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--safari-green);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--safari-teal);
 }

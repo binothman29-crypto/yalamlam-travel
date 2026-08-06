@@ -31,11 +31,10 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
 
-  // Clean Flag Emojis
   const languages = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
-    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
-    { code: 'fr', name: 'Français', flag: '🇫🇷' },
+    { code: 'ar', name: 'العربية', flag: '🇦' },
+    { code: 'fr', name: 'Français', flag: '🇷' },
     { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
   ];
 
@@ -45,31 +44,31 @@ export default function Navbar() {
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
+          {/* Logo - Always on left in LTR, right in RTL */}
+          <Link to="/" className="flex items-center space-x-3 flex-shrink-0">
             <img src="/logo.png" alt="Yalamlam Travel" className="h-12 w-12" />
-            <div>
+            <div className="hidden sm:block">
               <h1 className="text-2xl font-bold text-safari-green">Yalamlam</h1>
               <p className="text-xs text-safari-gold -mt-1">Travel & Tours</p>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="text-gray-700 hover:text-safari-green font-medium transition">Home</Link>
-            <Link to="/tours" className="text-gray-700 hover:text-safari-green font-medium transition">Tours</Link>
-            <Link to="/halal" className="text-gray-700 hover:text-safari-green font-medium transition">Halal Tourism</Link>
-            <Link to="/destinations" className="text-gray-700 hover:text-safari-green font-medium transition">Destinations</Link>
-            <Link to="/contact" className="text-gray-700 hover:text-safari-green font-medium transition">Contact</Link>
+          <div className="hidden lg:flex items-center space-x-4 xl:space-x-6">
+            <Link to="/" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Home</Link>
+            <Link to="/tours" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Tours</Link>
+            <Link to="/halal" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Halal Tourism</Link>
+            <Link to="/destinations" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Destinations</Link>
+            <Link to="/contact" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Contact</Link>
             
             {/* Language Switcher */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <button 
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition border border-gray-200"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition border border-gray-200 whitespace-nowrap"
               >
                 <span className="text-xl">{currentLang?.flag}</span>
-                <span className="text-sm font-medium text-gray-700">{currentLang?.name}</span>
+                <span className="text-sm font-medium text-gray-700 hidden sm:inline">{currentLang?.name}</span>
               </button>
               
               {showLangMenu && (
@@ -92,19 +91,19 @@ export default function Navbar() {
             </div>
             
             {user ? (
-              <div className="flex items-center space-x-3">
-                <Link to="/dashboard" className="text-safari-green font-bold hover:text-safari-teal transition">My Dashboard</Link>
+              <div className="flex items-center space-x-3 flex-shrink-0">
+                <Link to="/dashboard" className="text-safari-green font-bold hover:text-safari-teal transition hidden md:inline">Dashboard</Link>
                 <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition">Logout</button>
               </div>
             ) : (
-              <Link to="/login" className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal transition shadow-md">Login</Link>
+              <Link to="/login" className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal transition shadow-md flex-shrink-0">Login</Link>
             )}
             
-            <Link to="/booking" className="bg-safari-gold text-white px-6 py-2 rounded-full font-bold hover:bg-yellow-600 transition shadow-md">Book Now</Link>
+            <Link to="/booking" className="bg-safari-gold text-white px-6 py-2 rounded-full font-bold hover:bg-yellow-600 transition shadow-md flex-shrink-0">Book Now</Link>
           </div>
 
           {/* Mobile Hamburger Menu Button */}
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition">
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition flex-shrink-0">
             <svg className="w-6 h-6 text-safari-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isMenuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -117,7 +116,7 @@ export default function Navbar() {
 
         {/* Mobile Navigation Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200">
+          <div className="lg:hidden py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-4">
               <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Home</Link>
               <Link to="/tours" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Tours</Link>
@@ -147,7 +146,7 @@ export default function Navbar() {
               
               {user ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-safari-green font-bold transition px-2">My Dashboard</Link>
+                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-safari-green font-bold transition px-2">Dashboard</Link>
                   <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition mx-2">Logout</button>
                 </>
               ) : (
