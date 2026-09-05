@@ -313,6 +313,13 @@ const translations = {
     resetPasswordSuccess: '✅ Password updated successfully! Redirecting to login...',
     invalidResetLink: 'This password reset link is invalid or has expired.',
     requestNewResetLink: 'Request a new one',
+    changePasswordTitle: 'Change Password',
+    changePasswordSubtitle: 'Update the password for your account',
+    currentPassword: 'Current Password',
+    changePasswordButton: 'Change Password',
+    changingPassword: 'Updating...',
+    passwordChangedSuccess: '✅ Password changed successfully.',
+    incorrectCurrentPassword: 'Current password is incorrect.',
   },
 
   ar: {
@@ -617,6 +624,13 @@ const translations = {
     resetPasswordSuccess: '✅ تم تحديث كلمة المرور بنجاح! جارٍ التحويل إلى تسجيل الدخول...',
     invalidResetLink: 'رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية.',
     requestNewResetLink: 'اطلب رابطاً جديداً',
+    changePasswordTitle: 'تغيير كلمة المرور',
+    changePasswordSubtitle: 'قم بتحديث كلمة المرور لحسابك',
+    currentPassword: 'كلمة المرور الحالية',
+    changePasswordButton: 'تغيير كلمة المرور',
+    changingPassword: 'جارٍ التحديث...',
+    passwordChangedSuccess: '✅ تم تغيير كلمة المرور بنجاح.',
+    incorrectCurrentPassword: 'كلمة المرور الحالية غير صحيحة.',
   },
 
   fr: {
@@ -921,6 +935,13 @@ const translations = {
     resetPasswordSuccess: '✅ Mot de passe mis à jour avec succès ! Redirection vers la connexion...',
     invalidResetLink: 'Ce lien de réinitialisation est invalide ou a expiré.',
     requestNewResetLink: 'Demander un nouveau lien',
+    changePasswordTitle: 'Changer le Mot de Passe',
+    changePasswordSubtitle: 'Mettez à jour le mot de passe de votre compte',
+    currentPassword: 'Mot de Passe Actuel',
+    changePasswordButton: 'Changer le Mot de Passe',
+    changingPassword: 'Mise à jour...',
+    passwordChangedSuccess: '✅ Mot de passe changé avec succès.',
+    incorrectCurrentPassword: 'Le mot de passe actuel est incorrect.',
   },
 
   tr: {
@@ -1225,6 +1246,13 @@ const translations = {
     resetPasswordSuccess: '✅ Şifre başarıyla güncellendi! Girişe yönlendiriliyor...',
     invalidResetLink: 'Bu şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş.',
     requestNewResetLink: 'Yeni bir bağlantı iste',
+    changePasswordTitle: 'Şifreyi Değiştir',
+    changePasswordSubtitle: 'Hesabınızın şifresini güncelleyin',
+    currentPassword: 'Mevcut Şifre',
+    changePasswordButton: 'Şifreyi Değiştir',
+    changingPassword: 'Güncelleniyor...',
+    passwordChangedSuccess: '✅ Şifre başarıyla değiştirildi.',
+    incorrectCurrentPassword: 'Mevcut şifre yanlış.',
   },
 };
 

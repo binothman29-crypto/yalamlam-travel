@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Dashboard() {
@@ -35,7 +35,12 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-safari-sand py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-safari-green mb-6">{t('myDashboard')}</h1>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-6">
+          <h1 className="text-3xl font-bold text-safari-green">{t('myDashboard')}</h1>
+          <Link to="/change-password" className="text-sm font-medium text-safari-green hover:text-safari-teal underline">
+            {t('changePasswordTitle')}
+          </Link>
+        </div>
         <p className="text-gray-600 mb-8">{t('welcomeBack')} {user?.user_metadata?.full_name || user?.email}!</p>
 
         <h2 className="text-xl font-bold text-gray-800 mb-4">{t('myBookings')}</h2>

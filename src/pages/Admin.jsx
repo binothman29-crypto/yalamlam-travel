@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 
 // ⚠️ EmailJS Configuration
@@ -195,17 +195,29 @@ export default function Admin() {
   };
 
   // --- STAFF MANAGEMENT ---
+  // Calls the admin-create-staff Edge Function rather than inserting into
+  // `staff` directly: a plain insert only added a row (no login credentials
+  // at all), so the person had no way to actually sign in. The function
+  // creates a real Auth account (or reuses one if the email already has an
+  // account) with a temporary password, then adds them to `staff`.
   const handleAddStaff = async (e) => {
     e.preventDefault();
     try {
-      const { error } = await supabase.from('staff').insert([{ 
-        email: newStaffEmail, 
-        full_name: newStaffName,
-        role: 'staff' 
-      }]);
-      if (error) throw error;
-      
-      alert("Staff member added successfully! They can now log in.");
+      const { data, error } = await supabase.functions.invoke('admin-create-staff', {
+        body: { email: newStaffEmail, full_name: newStaffName, role: 'staff' },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Failed to add staff member');
+      }
+
+      if (data.tempPassword) {
+        alert(
+          `Staff member added! Share this temporary password with them so they can log in:\n\n${data.tempPassword}\n\nThey should change it afterwards using the "Change Password" button.`
+        );
+      } else {
+        alert('That email already had an account -- they were added to the team and can log in with their existing password.');
+      }
+
       setNewStaffEmail('');
       setNewStaffName('');
       fetchStaff();
@@ -343,7 +355,10 @@ export default function Admin() {
             <h1 className="text-2xl font-bold text-safari-green">Yalamlam Staff Dashboard</h1>
             <p className="text-gray-500 text-sm">Welcome back, {user.email} ({userRole})</p>
           </div>
-          <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition w-full md:w-auto">Logout</button>
+          <div className="flex gap-3 w-full md:w-auto">
+            <Link to="/change-password" className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center">Change Password</Link>
+            <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition w-full md:w-auto">Logout</button>
+          </div>
         </div>
 
         {/* Tabs */}
