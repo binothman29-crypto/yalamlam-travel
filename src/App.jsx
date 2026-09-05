@@ -14,6 +14,8 @@ import FloatingWhatsApp from './components/FloatingWhatsApp';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Legal from './pages/Legal';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
           <Route path="/destinations" element={<Destinations />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/tours/:id" element={<TourDetails />} />
           <Route path="/register" element={<Register />} />
