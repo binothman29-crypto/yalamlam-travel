@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Login() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +23,7 @@ export default function Login() {
     });
 
     if (error) {
-      setError('Invalid email or password. Please try again.');
+      setError(t('invalidCredentials'));
       setLoading(false);
     } else {
       // 2. Check if this user is in the 'staff' table
@@ -44,8 +46,8 @@ export default function Login() {
     <div className="min-h-screen bg-safari-sand flex items-center justify-center px-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-heading font-bold text-safari-green">Login</h1>
-          <p className="text-gray-500 mt-2">Yalamlam Travel & Tours</p>
+          <h1 className="text-3xl font-heading font-bold text-safari-green">{t('login')}</h1>
+          <p className="text-gray-500 mt-2">{t('loginSubtitle')}</p>
         </div>
 
         {error && (
@@ -56,41 +58,41 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              required 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent" 
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t('email')}</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent" 
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t('password')}</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent"
             />
           </div>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full bg-safari-green text-white py-3 rounded-full font-bold text-lg hover:bg-safari-teal transition shadow-md disabled:opacity-50"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? t('loggingIn') : t('login')}
           </button>
           <div className="text-center mt-4">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              {t('noAccount')}{' '}
               <Link to="/register" className="font-medium text-safari-green hover:text-safari-teal">
-                Sign up here
+                {t('signUpHere')}
               </Link>
             </p>
             <p className="text-xs text-gray-500 mt-2">
-              Staff: Use your company email to access the admin panel
+              {t('staffHint')}
             </p>
           </div>
         </form>

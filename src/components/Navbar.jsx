@@ -8,7 +8,7 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const navigate = useNavigate();
-  const { lang, changeLanguage } = useLanguage();
+  const { lang, t, changeLanguage } = useLanguage();
 
   useEffect(() => {
     const getUser = async () => {
@@ -33,8 +33,8 @@ export default function Navbar() {
 
   const languages = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
-    { code: 'ar', name: 'العربية', flag: '🇦' },
-    { code: 'fr', name: 'Français', flag: '🇷' },
+    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
     { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
   ];
 
@@ -55,11 +55,11 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-4 xl:space-x-6">
-            <Link to="/" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Home</Link>
-            <Link to="/tours" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Tours</Link>
-            <Link to="/halal" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Halal Tourism</Link>
-            <Link to="/destinations" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Destinations</Link>
-            <Link to="/contact" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Contact</Link>
+            <Link to="/" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('home')}</Link>
+            <Link to="/tours" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('tours')}</Link>
+            <Link to="/halal" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('halalTourism')}</Link>
+            <Link to="/destinations" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('destinations')}</Link>
+            <Link to="/contact" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('contact')}</Link>
             
             {/* Language Switcher */}
             <div className="relative flex-shrink-0">
@@ -92,14 +92,14 @@ export default function Navbar() {
             
             {user ? (
               <div className="flex items-center space-x-3 flex-shrink-0">
-                <Link to="/dashboard" className="text-safari-green font-bold hover:text-safari-teal transition hidden md:inline">Dashboard</Link>
-                <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition">Logout</button>
+                <Link to="/dashboard" className="text-safari-green font-bold hover:text-safari-teal transition hidden md:inline">{t('myDashboard')}</Link>
+                <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition">{t('logout')}</button>
               </div>
             ) : (
-              <Link to="/login" className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal transition shadow-md flex-shrink-0">Login</Link>
+              <Link to="/login" className="bg-safari-green text-white px-6 py-2 rounded-full font-bold hover:bg-safari-teal transition shadow-md flex-shrink-0">{t('login')}</Link>
             )}
-            
-            <Link to="/booking" className="bg-safari-gold text-white px-6 py-2 rounded-full font-bold hover:bg-yellow-600 transition shadow-md flex-shrink-0">Book Now</Link>
+
+            <Link to="/booking" className="bg-safari-gold text-white px-6 py-2 rounded-full font-bold hover:bg-yellow-600 transition shadow-md flex-shrink-0">{t('bookNow')}</Link>
           </div>
 
           {/* Mobile Hamburger Menu Button */}
@@ -118,15 +118,15 @@ export default function Navbar() {
         {isMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-4">
-              <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Home</Link>
-              <Link to="/tours" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Tours</Link>
-              <Link to="/halal" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Halal Tourism</Link>
-              <Link to="/destinations" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Destinations</Link>
-              <Link to="/contact" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Contact</Link>
-              
+              <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('home')}</Link>
+              <Link to="/tours" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('tours')}</Link>
+              <Link to="/halal" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('halalTourism')}</Link>
+              <Link to="/destinations" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('destinations')}</Link>
+              <Link to="/contact" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('contact')}</Link>
+
               {/* Mobile Language Switcher */}
               <div className="px-2 pt-2 border-t border-gray-200">
-                <p className="text-xs font-bold text-gray-500 mb-2">SELECT LANGUAGE</p>
+                <p className="text-xs font-bold text-gray-500 mb-2">{t('selectLanguage')}</p>
                 <div className="flex flex-wrap gap-2">
                   {languages.map((language) => (
                     <button
@@ -146,14 +146,14 @@ export default function Navbar() {
               
               {user ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-safari-green font-bold transition px-2">Dashboard</Link>
-                  <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition mx-2">Logout</button>
+                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-safari-green font-bold transition px-2">{t('myDashboard')}</Link>
+                  <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition mx-2">{t('logout')}</button>
                 </>
               ) : (
-                <Link to="/login" onClick={() => setIsMenuOpen(false)} className="bg-safari-green text-white px-6 py-3 rounded-full font-bold hover:bg-safari-teal transition shadow-md text-center mx-2">Login</Link>
+                <Link to="/login" onClick={() => setIsMenuOpen(false)} className="bg-safari-green text-white px-6 py-3 rounded-full font-bold hover:bg-safari-teal transition shadow-md text-center mx-2">{t('login')}</Link>
               )}
-              
-              <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="bg-safari-gold text-white px-6 py-3 rounded-full font-bold hover:bg-yellow-600 transition shadow-md text-center mx-2">Book Now</Link>
+
+              <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="bg-safari-gold text-white px-6 py-3 rounded-full font-bold hover:bg-yellow-600 transition shadow-md text-center mx-2">{t('bookNow')}</Link>
             </div>
           </div>
         )}

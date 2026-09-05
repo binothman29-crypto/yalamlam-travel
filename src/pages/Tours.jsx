@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Tours() {
+  const { t } = useLanguage();
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -48,90 +50,90 @@ export default function Tours() {
     return 0; // Default: newest first (from DB order)
   });
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-safari-green">Loading tours...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-safari-green">{t('loadingTours')}</div>;
 
   return (
     <div className="min-h-screen bg-safari-sand py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        
+
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-safari-green mb-4">Explore Our Tours</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">Discover our carefully curated Halal-friendly safaris, Zanzibar beach getaways, and Kilimanjaro adventures.</p>
+          <h1 className="text-4xl font-bold text-safari-green mb-4">{t('exploreToursTitle')}</h1>
+          <p className="text-gray-600 max-w-2xl mx-auto">{t('exploreToursSubtitle')}</p>
         </div>
 
         {/* Advanced Filter Bar */}
         <div className="bg-white p-6 rounded-2xl shadow-md mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
+
             {/* Search */}
             <div className="relative">
               <span className="absolute left-3 top-3 text-gray-400">🔍</span>
-              <input 
-                type="text" 
-                placeholder="Search tours or locations..." 
+              <input
+                type="text"
+                placeholder={t('searchTours')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-green focus:border-transparent outline-none"
               />
             </div>
 
-            {/* Category */}
-            <select 
-              value={selectedCategory} 
+            {/* Category - option values stay in English: they must match the category values stored in the database */}
+            <select
+              value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-green outline-none bg-white"
             >
-              <option value="All">All Categories</option>
-              <option value="Zanzibar Tours">Zanzibar Tours</option>
-              <option value="Tanzania Safaris">Tanzania Safaris</option>
-              <option value="Halal Packages">Halal Packages</option>
-              <option value="Kilimanjaro">Kilimanjaro</option>
+              <option value="All">{t('allCategories')}</option>
+              <option value="Zanzibar Tours">{t('zanzibarTours')}</option>
+              <option value="Tanzania Safaris">{t('tanzaniaSafaris')}</option>
+              <option value="Halal Packages">{t('halalPackages')}</option>
+              <option value="Kilimanjaro">{t('kilimanjaro')}</option>
             </select>
 
             {/* Max Price */}
-            <select 
-              value={maxPrice} 
+            <select
+              value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-green outline-none bg-white"
             >
-              <option value="All">Any Price</option>
-              <option value="500">Under $500</option>
-              <option value="1000">Under $1,000</option>
-              <option value="2000">Under $2,000</option>
-              <option value="5000">Under $5,000</option>
+              <option value="All">{t('anyPrice')}</option>
+              <option value="500">{t('under500')}</option>
+              <option value="1000">{t('under1000')}</option>
+              <option value="2000">{t('under2000')}</option>
+              <option value="5000">{t('under5000')}</option>
             </select>
 
             {/* Sort By */}
-            <select 
-              value={sortBy} 
+            <select
+              value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-green outline-none bg-white"
             >
-              <option value="newest">Newest First</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="duration">Duration: Shortest First</option>
+              <option value="newest">{t('newestFirst')}</option>
+              <option value="price-asc">{t('priceLowHigh')}</option>
+              <option value="price-desc">{t('priceHighLow')}</option>
+              <option value="duration">{t('durationShort')}</option>
             </select>
           </div>
         </div>
 
         {/* Results Count */}
         <p className="text-gray-600 mb-6 font-medium">
-          Showing {sortedTours.length} {sortedTours.length === 1 ? 'tour' : 'tours'}
+          {t('showingTours')} {sortedTours.length} {sortedTours.length === 1 ? t('tour') : t('toursPlural')}
         </p>
 
         {/* Tours Grid */}
         {sortedTours.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
             <p className="text-2xl text-gray-400 mb-4">🔍</p>
-            <h3 className="text-xl font-bold text-gray-700">No tours found</h3>
-            <p className="text-gray-500">Try adjusting your filters or search query.</p>
-            <button 
+            <h3 className="text-xl font-bold text-gray-700">{t('noToursFound')}</h3>
+            <p className="text-gray-500">{t('tryAdjustingFilters')}</p>
+            <button
               onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setMaxPrice('All'); }}
               className="mt-4 text-safari-green font-bold hover:underline"
             >
-              Clear all filters
+              {t('clearAllFilters')}
             </button>
           </div>
         ) : (
@@ -165,11 +167,11 @@ export default function Tours() {
                   
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <div>
-                      <span className="text-xs text-gray-500 block">Starting from</span>
+                      <span className="text-xs text-gray-500 block">{t('startingFrom')}</span>
                       <span className="text-2xl font-bold text-safari-green">${tour.price}</span>
                     </div>
                     <span className="bg-safari-green text-white px-4 py-2 rounded-full text-sm font-bold group-hover:bg-safari-teal transition-colors">
-                      View Details
+                      {t('viewDetails')}
                     </span>
                   </div>
                 </div>

@@ -32,18 +32,18 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="p-6 rounded-2xl bg-safari-sand shadow-sm">
               <div className="text-4xl mb-4">🍽️</div>
-              <h3 className="text-xl font-bold text-safari-green mb-2">100% Halal Meals</h3>
-              <p className="text-gray-600">Every meal is strictly Halal certified, prepared in clean, modest environments.</p>
+              <h3 className="text-xl font-bold text-safari-green mb-2">{t('halalMealsTitle')}</h3>
+              <p className="text-gray-600">{t('halalMealsDesc')}</p>
             </div>
             <div className="p-6 rounded-2xl bg-safari-sand shadow-sm">
               <div className="text-4xl mb-4">🕌</div>
-              <h3 className="text-xl font-bold text-safari-green mb-2">Prayer Facilities</h3>
-              <p className="text-gray-600">Itineraries are built around prayer times with guaranteed access to clean mosques.</p>
+              <h3 className="text-xl font-bold text-safari-green mb-2">{t('prayerFacilitiesTitle')}</h3>
+              <p className="text-gray-600">{t('prayerFacilitiesDesc')}</p>
             </div>
             <div className="p-6 rounded-2xl bg-safari-sand shadow-sm">
-              <div className="text-4xl mb-4">️</div>
-              <h3 className="text-xl font-bold text-safari-green mb-2">Modest & Safe</h3>
-              <p className="text-gray-600">Private transfers, modest-friendly guides, and family-oriented environments.</p>
+              <div className="text-4xl mb-4">🛡️</div>
+              <h3 className="text-xl font-bold text-safari-green mb-2">{t('modestSafeTitle')}</h3>
+              <p className="text-gray-600">{t('modestSafeDesc')}</p>
             </div>
           </div>
         </div>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Dashboard() {
+  const { t } = useLanguage();
   const [bookings, setBookings] = useState([]);
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
@@ -33,12 +35,12 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-safari-sand py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-safari-green mb-6">My Dashboard</h1>
-        <p className="text-gray-600 mb-8">Welcome back, {user?.user_metadata?.full_name || user?.email}!</p>
+        <h1 className="text-3xl font-bold text-safari-green mb-6">{t('myDashboard')}</h1>
+        <p className="text-gray-600 mb-8">{t('welcomeBack')} {user?.user_metadata?.full_name || user?.email}!</p>
 
-        <h2 className="text-xl font-bold text-gray-800 mb-4">My Bookings</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">{t('myBookings')}</h2>
         {bookings.length === 0 ? (
-          <p className="text-gray-500 bg-white p-6 rounded-xl shadow-md">You haven't made any bookings yet. <a href="/tours" className="text-safari-green font-bold underline">Browse Tours</a></p>
+          <p className="text-gray-500 bg-white p-6 rounded-xl shadow-md">{t('noBookingsYet')} <a href="/tours" className="text-safari-green font-bold underline">{t('browseTours')}</a></p>
         ) : (
           <div className="space-y-4">
             {bookings.map((booking) => (
@@ -46,7 +48,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-lg text-safari-green">{booking.destination}</h3>
-                    <p className="text-sm text-gray-500">Ref: #YAL-{booking.id.substring(0, 8)}</p>
+                    <p className="text-sm text-gray-500">{t('refLabel')} #YAL-{booking.id.substring(0, 8)}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
                     booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
@@ -56,8 +58,8 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                  <p><strong>Dates:</strong> {booking.start_date} to {booking.end_date}</p>
-                  <p><strong>Guests:</strong> {booking.guests}</p>
+                  <p><strong>{t('datesLabel')}</strong> {booking.start_date} to {booking.end_date}</p>
+                  <p><strong>{t('guestsLabel')}</strong> {booking.guests}</p>
                 </div>
               </div>
             ))}
