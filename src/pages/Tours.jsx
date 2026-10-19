@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function Tours() {
   const { t } = useLanguage();
+  // t() returns the key itself when a translation is missing, so new strings
+  // fall back to English until they are added to LanguageContext.
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
+
+  // The Destinations page links here as /tours?q=zanzibar
+  const [searchParams] = useSearchParams();
+
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [loadError, setLoadError] = useState('');
+
   // Filter States
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [maxPrice, setMaxPrice] = useState('All');
   const [sortBy, setSortBy] = useState('newest');
@@ -21,30 +32,39 @@ export default function Tours() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (data) setTours(data);
+      if (error) {
+        console.error('Failed to load tours:', error);
+        setLoadError(tr('toursLoadError', 'We could not load the tours. Please refresh the page.'));
+      } else {
+        setTours(data || []);
+      }
       setLoading(false);
     };
     fetchTours();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 1. Filter Logic
+  // 1. Filter Logic (null-safe: a tour missing a title/location must not crash the page)
+  const query = searchQuery.trim().toLowerCase();
   const filteredTours = tours.filter(tour => {
-    const matchesSearch = tour.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          tour.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      !query ||
+      (tour.title || '').toLowerCase().includes(query) ||
+      (tour.location || '').toLowerCase().includes(query);
     const matchesCategory = selectedCategory === 'All' || tour.category === selectedCategory;
-    const matchesPrice = maxPrice === 'All' || tour.price <= parseInt(maxPrice);
-    
+    const matchesPrice = maxPrice === 'All' || Number(tour.price) <= parseInt(maxPrice, 10);
+
     return matchesSearch && matchesCategory && matchesPrice;
   });
 
   // 2. Sort Logic
   const sortedTours = [...filteredTours].sort((a, b) => {
-    if (sortBy === 'price-asc') return a.price - b.price;
-    if (sortBy === 'price-desc') return b.price - a.price;
+    if (sortBy === 'price-asc') return (Number(a.price) || 0) - (Number(b.price) || 0);
+    if (sortBy === 'price-desc') return (Number(b.price) || 0) - (Number(a.price) || 0);
     if (sortBy === 'duration') {
       // Extracts the number from strings like "3 Days" or "5 Days"
-      const numA = parseInt(a.duration) || 0;
-      const numB = parseInt(b.duration) || 0;
+      const numA = parseInt(a.duration, 10) || 0;
+      const numB = parseInt(b.duration, 10) || 0;
       return numA - numB;
     }
     return 0; // Default: newest first (from DB order)
@@ -61,6 +81,12 @@ export default function Tours() {
           <h1 className="text-4xl font-bold text-safari-green mb-4">{t('exploreToursTitle')}</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">{t('exploreToursSubtitle')}</p>
         </div>
+
+        {loadError && (
+          <div role="alert" className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm text-center">
+            {loadError}
+          </div>
+        )}
 
         {/* Advanced Filter Bar */}
         <div className="bg-white p-6 rounded-2xl shadow-md mb-8">
@@ -141,21 +167,21 @@ export default function Tours() {
             {sortedTours.map(tour => (
               <Link key={tour.id} to={`/tours/${tour.id}`} className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
                 <div className="relative h-56 overflow-hidden">
-                  <img 
-                    src={tour.image_url || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80'} 
-                    alt={tour.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  <img
+                    src={tour.image_url || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80'}
+                    alt={tour.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {tour.is_halal && (
                     <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                      ✅ 100% Halal
+                      ✅ {t('halalCertified')}
                     </span>
                   )}
                   <span className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm text-safari-green text-sm font-bold px-3 py-1 rounded-lg shadow-sm">
                     {tour.duration}
                   </span>
                 </div>
-                
+
                 <div className="p-6 flex flex-col flex-grow">
                   <div className="text-xs font-bold text-safari-gold uppercase tracking-wide mb-2">{tour.category}</div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-safari-green transition-colors line-clamp-2">
@@ -164,7 +190,7 @@ export default function Tours() {
                   <p className="text-gray-500 text-sm mb-4 line-clamp-2 flex-grow">
                     {tour.description}
                   </p>
-                  
+
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <div>
                       <span className="text-xs text-gray-500 block">{t('startingFrom')}</span>

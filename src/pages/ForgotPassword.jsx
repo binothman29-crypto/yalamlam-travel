@@ -5,6 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import OtpInput from '../components/OtpInput';
 
 const RESEND_COOLDOWN_SECONDS = 60;
+const MIN_PASSWORD_LENGTH = 8;
 
 // Custom, self-contained password reset: request-password-reset emails a
 // 6-digit code (via Resend, sent directly from the Edge Function) and
@@ -15,6 +16,12 @@ const RESEND_COOLDOWN_SECONDS = 60;
 // listener needed.
 export default function ForgotPassword() {
   const { t } = useLanguage();
+  // t() returns the key itself when a translation is missing, so new strings
+  // fall back to English until they are added to LanguageContext.
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
   const navigate = useNavigate();
 
   const [step, setStep] = useState('email'); // 'email' | 'reset' | 'done'
@@ -28,6 +35,9 @@ export default function ForgotPassword() {
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef(null);
+
+  // Accounts are stored lowercase, so send the address the same way.
+  const normalizedEmail = email.trim().toLowerCase();
 
   useEffect(() => {
     return () => clearInterval(cooldownRef.current);
@@ -49,7 +59,7 @@ export default function ForgotPassword() {
 
   const requestCode = async () => {
     const { error: invokeError } = await supabase.functions.invoke('request-password-reset', {
-      body: { email },
+      body: { email: normalizedEmail },
     });
     // The function always replies with a generic success (even for an
     // unregistered email, to avoid leaking which emails exist) -- a thrown
@@ -92,8 +102,8 @@ export default function ForgotPassword() {
       setError(t('invalidCode'));
       return;
     }
-    if (newPassword.length < 6) {
-      setError(t('passwordTooShort'));
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(tr('passwordMin8', `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`));
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -103,7 +113,7 @@ export default function ForgotPassword() {
 
     setResetting(true);
     const { data, error: invokeError } = await supabase.functions.invoke('confirm-password-reset', {
-      body: { email, code: otp, newPassword },
+      body: { email: normalizedEmail, code: otp, newPassword },
     });
     setResetting(false);
 
@@ -139,7 +149,7 @@ export default function ForgotPassword() {
             </div>
 
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
+              <div role="alert" className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
                 {error}
               </div>
             )}
@@ -150,6 +160,7 @@ export default function ForgotPassword() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('email')}</label>
                   <input
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -167,7 +178,7 @@ export default function ForgotPassword() {
             ) : (
               <form onSubmit={handleResetPassword} className="space-y-5">
                 <p className="text-sm text-gray-600 text-center">
-                  {t('codeSentTo')} <span className="font-semibold text-safari-green">{email}</span>
+                  {t('codeSentTo')} <span className="font-semibold text-safari-green">{normalizedEmail}</span>
                 </p>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">{t('enterCode')}</label>
@@ -177,10 +188,11 @@ export default function ForgotPassword() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('newPassword')}</label>
                   <input
                     type="password"
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={MIN_PASSWORD_LENGTH}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent"
                   />
                 </div>
@@ -188,10 +200,11 @@ export default function ForgotPassword() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('confirmNewPassword')}</label>
                   <input
                     type="password"
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={MIN_PASSWORD_LENGTH}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent"
                   />
                 </div>

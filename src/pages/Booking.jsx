@@ -1,16 +1,38 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
 
+// Replace with the WhatsApp number that receives booking requests (no +, no spaces).
+const WHATSAPP_NUMBER = '255778265758';
+
+// Today in the visitor's own timezone as YYYY-MM-DD (for the date inputs' min).
+const todayISO = () => new Date().toLocaleDateString('en-CA');
+
 export default function Booking() {
   const { t } = useLanguage();
-  const navigate = useNavigate();
+  // t() returns the key itself when a translation is missing, so new strings
+  // fall back to English until they are added to LanguageContext.
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
+
+  // "Book this tour" on a tour page links here as /booking?tour=<title>&price=<n>
+  const [searchParams] = useSearchParams();
+  const tourTitle = (searchParams.get('tour') || '').trim();
+  const tourPrice = (searchParams.get('price') || '').trim();
+
   const [step, setStep] = useState(1);
+  const [stepError, setStepError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set after a successful save: { whatsappUrl, loggedIn }
+  const [completed, setCompleted] = useState(null);
 
   // This object holds all the data the user types in
   const [formData, setFormData] = useState({
-    destination: 'zanzibar',
+    destination: tourTitle || 'zanzibar',
     startDate: '',
     endDate: '',
     guests: 2,
@@ -46,10 +68,39 @@ export default function Booking() {
     }));
   };
 
-  const nextStep = () => setStep(prev => prev + 1);
-  const prevStep = () => setStep(prev => prev - 1);
+  // The "Next" buttons are not form submits, so the browser never checks the
+  // required fields of earlier steps. Check them here before moving on.
+  const validateStep = (currentStep) => {
+    if (currentStep === 1) {
+      if (!formData.startDate || !formData.endDate) {
+        return tr('datesRequired', 'Please choose your start and end dates.');
+      }
+      if (formData.startDate < todayISO()) {
+        return tr('startInPast', 'The start date cannot be in the past.');
+      }
+      if (formData.endDate < formData.startDate) {
+        return tr('endBeforeStart', 'The end date cannot be before the start date.');
+      }
+      if (!(parseInt(formData.guests, 10) >= 1)) {
+        return tr('guestsMin', 'Please enter at least 1 guest.');
+      }
+    }
+    return '';
+  };
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const nextStep = () => {
+    const problem = validateStep(step);
+    if (problem) {
+      setStepError(problem);
+      return;
+    }
+    setStepError('');
+    setStep(prev => prev + 1);
+  };
+  const prevStep = () => {
+    setStepError('');
+    setStep(prev => prev - 1);
+  };
 
   // Activities are stored in the database in English regardless of UI language,
   // so the "value" here stays fixed while only the visible label is translated.
@@ -64,21 +115,40 @@ export default function Booking() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { data: { user } } = await supabase.auth.getUser();
+    setSubmitError('');
+
+    // Re-check step 1 in case someone jumped ahead.
+    const problem = validateStep(1);
+    if (problem) {
+      setStep(1);
+      setStepError(problem);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const guests = Math.max(1, parseInt(formData.guests, 10) || 1);
+
+      // The bookings table has no "tour" column, so the chosen tour and its
+      // quoted price travel with the special requests.
+      const tourNote = tourTitle
+        ? `[Selected tour: ${tourTitle}${tourPrice ? ` - $${tourPrice} per person` : ''}]`
+        : '';
+      const specialRequests = [tourNote, formData.specialRequests.trim()].filter(Boolean).join('\n');
+
       // 1. SAVE TO DATABASE
-      const { data, error } = await supabase.from('bookings').insert([
+      const { error } = await supabase.from('bookings').insert([
         {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
           destination: formData.destination,
           start_date: formData.startDate,
           end_date: formData.endDate,
-          guests: formData.guests,
+          guests,
           halal_meals: formData.halalMeals,
           prayer_facilities: formData.prayerFacilities,
           private_vehicle: formData.privateVehicle,
@@ -86,7 +156,7 @@ export default function Booking() {
           modest_activities: formData.modestActivities,
           accommodation: formData.accommodation,
           activities: formData.activities,
-          special_requests: formData.specialRequests,
+          special_requests: specialRequests,
           status: 'pending',
           user_id: user ? user.id : null
         }
@@ -94,18 +164,17 @@ export default function Booking() {
 
       if (error) {
         console.error("Database error:", error);
-        alert("Sorry, there was an error saving your booking. Please try again or WhatsApp us directly.");
-        setIsSubmitting(false);
+        setSubmitError(tr('bookingSaveError', 'Sorry, we could not save your booking. Please try again, or WhatsApp us directly.'));
         return;
       }
 
-      // 2. SEND TO WHATSAPP
+      // 2. BUILD THE WHATSAPP MESSAGE
       const message = `
 🌍 *NEW YALAMLAM TRAVEL BOOKING REQUEST*
 ---------------------------------
-📍 *Destination:* ${formData.destination}
+📍 *Destination:* ${formData.destination}${tourPrice ? ` ($${tourPrice} per person)` : ''}
 📅 *Dates:* ${formData.startDate} to ${formData.endDate}
-👥 *Guests:* ${formData.guests}
+👥 *Guests:* ${guests}
 
 🕌 *FAITH & COMFORT:*
 - Halal Meals: ${formData.halalMeals ? '✅ Yes' : '❌ No'}
@@ -124,21 +193,18 @@ export default function Booking() {
 - Phone/WhatsApp: ${formData.phone}
 
 📝 *SPECIAL REQUESTS:*
-${formData.specialRequests || 'None'}
+${formData.specialRequests.trim() || 'None'}
       `.trim();
 
-      const encodedMessage = encodeURIComponent(message);
-
-      // ⚠️ REPLACE THIS WITH YOUR ACTUAL WHATSAPP NUMBER (No + sign, no spaces)
-      const yourWhatsAppNumber = "255778265758";
-
-      window.open(`https://wa.me/${yourWhatsAppNumber}?text=${encodedMessage}`, '_blank');
-
-      alert("JazakAllah Khair! Your booking has been saved and we've opened WhatsApp to finalize it.");
-
+      // Browsers (iOS Safari especially) block window.open() once we have
+      // awaited the database, so show a button the visitor taps instead.
+      setCompleted({
+        whatsappUrl: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+        loggedIn: Boolean(user),
+      });
     } catch (err) {
       console.error("Unexpected error:", err);
-      alert("Something went wrong. Please try again.");
+      setSubmitError(tr('bookingUnexpectedError', 'Something went wrong. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -146,6 +212,39 @@ ${formData.specialRequests || 'None'}
 
   // Progress bar calculation
   const progress = (step / 4) * 100;
+  const today = todayISO();
+
+  if (completed) {
+    return (
+      <div className="min-h-screen bg-safari-sand py-12 px-4">
+        <div className="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-lg text-center space-y-5">
+          <div className="text-5xl">✅</div>
+          <h1 className="text-2xl md:text-3xl font-heading font-bold text-safari-green">
+            {tr('bookingSavedTitle', 'JazakAllah Khair! Your request is saved.')}
+          </h1>
+          <p className="text-gray-600">
+            {tr('bookingSavedBody', 'One last step: send your details to us on WhatsApp so we can finalize your booking.')}
+          </p>
+          <a
+            href={completed.whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block bg-green-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-green-700 transition shadow-md"
+          >
+            {tr('continueOnWhatsApp', 'Continue on WhatsApp')}
+          </a>
+          <div className="pt-2">
+            <Link
+              to={completed.loggedIn ? '/dashboard' : '/'}
+              className="text-sm font-medium text-safari-green hover:text-safari-teal underline"
+            >
+              {completed.loggedIn ? tr('viewMyBookings', 'View my bookings') : tr('backToHome', 'Back to home')}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-safari-sand py-12 px-4">
@@ -172,9 +271,18 @@ ${formData.specialRequests || 'None'}
           {step === 1 && (
             <div className="space-y-6 animate-fade-in">
               <h2 className="text-2xl font-heading font-bold text-safari-green border-b pb-3">{t('step1Title')}</h2>
+
+              {tourTitle && (
+                <div className="bg-safari-sand border border-safari-gold rounded-xl p-4 text-sm text-safari-green">
+                  <span className="font-bold">{tr('selectedTour', 'Selected tour')}:</span> {tourTitle}
+                  {tourPrice && <span> &middot; ${tourPrice} {t('perPerson')}</span>}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('whereToGo')}</label>
                 <select name="destination" value={formData.destination} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent">
+                  {tourTitle && <option value={tourTitle}>{tourTitle}</option>}
                   <option value="zanzibar">{t('destZanzibar')}</option>
                   <option value="serengeti">{t('destSerengeti')}</option>
                   <option value="kilimanjaro">{t('destKilimanjaro')}</option>
@@ -184,16 +292,16 @@ ${formData.specialRequests || 'None'}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('startDate')}</label>
-                  <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                  <input type="date" name="startDate" min={today} value={formData.startDate} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('endDate')}</label>
-                  <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                  <input type="date" name="endDate" min={formData.startDate || today} value={formData.endDate} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('numberOfGuests')}</label>
-                <input type="number" name="guests" min="1" value={formData.guests} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                <input type="number" name="guests" min="1" max="50" value={formData.guests} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
               </div>
             </div>
           )}
@@ -252,8 +360,14 @@ ${formData.specialRequests || 'None'}
               <InputField label={t('whatsappNumberLabel')} name="phone" type="tel" value={formData.phone} onChange={handleChange} required />
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('specialRequests')}</label>
-                <textarea name="specialRequests" rows="4" value={formData.specialRequests} onChange={handleChange} placeholder={t('specialRequestsPlaceholder')} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold"></textarea>
+                <textarea name="specialRequests" rows="4" maxLength={2000} value={formData.specialRequests} onChange={handleChange} placeholder={t('specialRequestsPlaceholder')} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold"></textarea>
               </div>
+            </div>
+          )}
+
+          {(stepError || submitError) && (
+            <div role="alert" className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mt-6 text-sm">
+              {stepError || submitError}
             </div>
           )}
 
@@ -273,7 +387,7 @@ ${formData.specialRequests || 'None'}
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-safari-green text-white py-3 rounded-full font-bold text-lg hover:bg-safari-teal transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full ml-4 bg-safari-green text-white py-3 rounded-full font-bold text-lg hover:bg-safari-teal transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? t('savingRequest') : t('submitBooking')}
               </button>

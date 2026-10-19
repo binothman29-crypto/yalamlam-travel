@@ -6,8 +6,17 @@ import OtpInput from '../components/OtpInput';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
+// Escape % and _ so an email address can be matched safely with ilike.
+const escapeLike = (value) => value.replace(/[\\%_]/g, '\\$&');
+
 export default function Login() {
   const { t } = useLanguage();
+  // t() returns the key itself when a translation is missing, so new strings
+  // fall back to English until they are added to LanguageContext.
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('password'); // 'password' | 'code'
@@ -47,19 +56,19 @@ export default function Login() {
   };
 
   // After any successful sign-in (password or code), route staff to /admin
-  // and everyone else to /dashboard.
+  // and everyone else to /dashboard. Always pass the email of the SIGNED-IN
+  // account (from the auth response), not what was typed: Auth lowercases
+  // emails, so a typed "Admin@..." would otherwise miss the staff row.
   const routeAfterLogin = async (signedInEmail) => {
-    const { data: staffData } = await supabase
+    const { data: staffData, error: staffError } = await supabase
       .from('staff')
-      .select('*')
-      .eq('email', signedInEmail)
-      .single();
+      .select('email')
+      .ilike('email', escapeLike(signedInEmail))
+      .maybeSingle();
 
-    if (staffData) {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
-    }
+    if (staffError) console.error('Staff lookup failed:', staffError);
+
+    navigate(staffData ? '/admin' : '/dashboard');
   };
 
   const handleLogin = async (e) => {
@@ -67,18 +76,27 @@ export default function Login() {
     setLoading(true);
     setError('');
 
-    // 1. Try to log the user in
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email,
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
       password: password,
     });
 
-    if (error) {
+    if (error || !data?.user) {
       setError(t('invalidCredentials'));
       setLoading(false);
-    } else {
-      await routeAfterLogin(email);
+      return;
     }
+
+    await routeAfterLogin(data.user.email);
+  };
+
+  // Same wording whether or not the address has an account, so this form
+  // cannot be used to find out which emails are registered.
+  const describeSendError = (err) => {
+    if (err?.status === 429 || /rate limit|too many|seconds/i.test(err?.message || '')) {
+      return tr('tooManyRequests', 'Too many attempts. Please wait a minute and try again.');
+    }
+    return tr('codeSendError', 'We could not send a code to that address. Check the email, or sign up first.');
   };
 
   const handleSendCode = async (e) => {
@@ -87,7 +105,7 @@ export default function Login() {
     setSendingCode(true);
 
     const { error } = await supabase.auth.signInWithOtp({
-      email: codeEmail,
+      email: codeEmail.trim().toLowerCase(),
       options: {
         // Only existing accounts may sign in this way; this never creates one.
         shouldCreateUser: false,
@@ -97,7 +115,7 @@ export default function Login() {
     setSendingCode(false);
 
     if (error) {
-      setCodeError(error.message && error.message !== '{}' ? error.message : t('invalidCode'));
+      setCodeError(describeSendError(error));
       return;
     }
 
@@ -111,12 +129,12 @@ export default function Login() {
     setCodeError('');
     setSendingCode(true);
     const { error } = await supabase.auth.signInWithOtp({
-      email: codeEmail,
+      email: codeEmail.trim().toLowerCase(),
       options: { shouldCreateUser: false },
     });
     setSendingCode(false);
     if (error) {
-      setCodeError(error.message && error.message !== '{}' ? error.message : t('invalidCode'));
+      setCodeError(describeSendError(error));
       return;
     }
     setOtp('');
@@ -129,21 +147,21 @@ export default function Login() {
     setCodeError('');
     setVerifyingCode(true);
 
-    const { error } = await supabase.auth.verifyOtp({
-      email: codeEmail,
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: codeEmail.trim().toLowerCase(),
       token: otp,
       type: 'email',
     });
 
     setVerifyingCode(false);
 
-    if (error) {
+    if (error || !data?.user) {
       setCodeError(t('invalidCode'));
       setOtp('');
       return;
     }
 
-    await routeAfterLogin(codeEmail);
+    await routeAfterLogin(data.user.email);
   };
 
   return (
@@ -189,6 +207,7 @@ export default function Login() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('email')}</label>
                 <input
                   type="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -204,6 +223,7 @@ export default function Login() {
                 </div>
                 <input
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -233,6 +253,7 @@ export default function Login() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('email')}</label>
                   <input
                     type="email"
+                    autoComplete="email"
                     value={codeEmail}
                     onChange={(e) => setCodeEmail(e.target.value)}
                     required

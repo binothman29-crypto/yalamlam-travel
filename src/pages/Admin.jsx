@@ -1,12 +1,30 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
-import emailjs from '@emailjs/browser';
 
-// ⚠️ EmailJS Configuration
-const EMAILJS_SERVICE_ID = 'yalamlam_smtp'; 
-const EMAILJS_TEMPLATE_ID = 'template_oibiz3z'; 
-const EMAILJS_PUBLIC_KEY = 'user_9hNXFaXZnQiRVgtyx';
+// Same short reference the customer dashboard and the emails use.
+const bookingRef = (id) => `YAL-${String(id).substring(0, 8).toUpperCase()}`;
+
+// Escape % and _ so an email address can be matched safely with ilike.
+const escapeLike = (value) => value.replace(/[\\%_]/g, '\\$&');
+
+const EMPTY_TOUR = {
+  title: '', location: '', category: '', price: '', duration: '',
+  image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true
+};
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+// Booking confirmations and reminders are sent by the send-booking-email Edge
+// Function (Resend). It checks on the server that the caller is staff, so no
+// email keys live in the browser.
+const invokeBookingEmail = async (body) => {
+  const { data, error } = await supabase.functions.invoke('send-booking-email', { body });
+  if (error || !data?.success) {
+    throw new Error(data?.error || error?.message || 'Email request failed');
+  }
+  return data;
+};
 
 export default function Admin() {
   const [user, setUser] = useState(null);
@@ -14,21 +32,18 @@ export default function Admin() {
   const [isStaff, setIsStaff] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [reviews, setReviews] = useState([]);
-  
+
   const [bookings, setBookings] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [tours, setTours] = useState([]);
   const [staffList, setStaffList] = useState([]);
-  
+
   const [activeTab, setActiveTab] = useState('bookings');
   const [editingBooking, setEditingBooking] = useState(null);
   const [bookingForm, setBookingForm] = useState({});
-  
-  // Tour Form State (Updated to match DB schema: included, excluded, gallery, itinerary)
-  const [newTour, setNewTour] = useState({
-    title: '', location: '', category: '', price: '', duration: '', 
-    image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true
-  });
+
+  // Tour Form State (matches DB schema: included, excluded, gallery, itinerary)
+  const [newTour, setNewTour] = useState(EMPTY_TOUR);
   const [editingTour, setEditingTour] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
@@ -41,10 +56,21 @@ export default function Admin() {
   // 1. Check Authentication & Staff Status
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          navigate('/login');
+          return;
+        }
         setUser(user);
-        const { data: staffData } = await supabase.from('staff').select('*').eq('email', user.email).single();
+
+        const { data: staffData, error } = await supabase
+          .from('staff')
+          .select('*')
+          .ilike('email', escapeLike(user.email))
+          .maybeSingle();
+        if (error) console.error('Staff lookup failed:', error);
+
         if (staffData) {
           setIsStaff(true);
           setUserRole(staffData.role || 'staff'); // Capture role for RBAC
@@ -55,31 +81,41 @@ export default function Admin() {
           await supabase.auth.signOut();
           navigate('/login');
         }
-      } else {
-        navigate('/login');
+      } finally {
+        setLoadingAuth(false);
       }
-      setLoadingAuth(false);
     };
     checkUser();
   }, [navigate]);
 
   const fetchData = async () => {
-    const { data: toursData } = await supabase.from('tours').select('*').order('created_at', { ascending: false });
-    setTours(toursData || []);
-    
-    const { data: bookingsData } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
-    setBookings(bookingsData || []);
-    
-    const { data: contactsData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
-    setContacts(contactsData || []);
-    
-    // Added tours(title) so we can display the tour name in the reviews tab
-    const { data: reviewsData } = await supabase.from('reviews').select('*, tours(title)').order('created_at', { ascending: false });
-    setReviews(reviewsData || []);
+    const [toursRes, bookingsRes, notesRes, contactsRes, reviewsRes] = await Promise.all([
+      supabase.from('tours').select('*').order('created_at', { ascending: false }),
+      supabase.from('bookings').select('*').order('created_at', { ascending: false }),
+      supabase.from('booking_notes').select('booking_id, notes'),
+      supabase.from('contacts').select('*').order('created_at', { ascending: false }),
+      // tours(title) lets the reviews tab show the tour name
+      supabase.from('reviews').select('*, tours(title)').order('created_at', { ascending: false }),
+    ]);
+
+    [['tours', toursRes], ['bookings', bookingsRes], ['booking_notes', notesRes], ['contacts', contactsRes], ['reviews', reviewsRes]]
+      .forEach(([name, res]) => { if (res.error) console.error(`Failed to load ${name}:`, res.error); });
+
+    setTours(toursRes.data || []);
+
+    // Internal notes live in their own staff-only table (customers can read
+    // their own booking row, so notes must never be stored on it).
+    const notesById = {};
+    (notesRes.data || []).forEach(n => { notesById[n.booking_id] = n.notes; });
+    setBookings((bookingsRes.data || []).map(b => ({ ...b, notes: notesById[b.id] || '' })));
+
+    setContacts(contactsRes.data || []);
+    setReviews(reviewsRes.data || []);
   };
 
   const fetchStaff = async () => {
-    const { data } = await supabase.from('staff').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('staff').select('*').order('created_at', { ascending: false });
+    if (error) console.error('Failed to load staff:', error);
     setStaffList(data || []);
   };
 
@@ -89,79 +125,47 @@ export default function Admin() {
   };
 
   const sendUpcomingReminders = async () => {
-    if (!window.confirm("Send reminder emails to all customers with tours in the next 48 hours?")) return;
+    if (!window.confirm("Send reminder emails to all customers with confirmed tours in the next 48 hours? Customers who already got a reminder are skipped.")) return;
 
-    const today = new Date().toISOString().split('T')[0];
-    const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    const { data: upcomingBookings, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('status', 'confirmed')
-      .gte('start_date', today)
-      .lte('start_date', twoDaysFromNow);
-
-    if (error) {
-      alert("Error fetching bookings: " + error.message);
-      return;
-    }
-
-    if (!upcomingBookings || upcomingBookings.length === 0) {
-      alert("No upcoming tours in the next 48 hours.");
-      return;
-    }
-
-    let successCount = 0;
-    for (const booking of upcomingBookings) {
-      try {
-        await emailjs.send(
-          'yalamlam_smtp', 
-          'template_nlcb9zr', // ⚠️ Ensure this is your actual Reminder Template ID!
-          {
-            to_email: booking.email,
-            first_name: booking.first_name,
-            destination: booking.destination,
-            start_date: booking.start_date
-          },
-          'user_9hNXFaXZnQiRVgtyx'
-        );
-        successCount++;
-      } catch (err) {
-        console.error("Failed to send to", booking.email, err);
+    try {
+      const result = await invokeBookingEmail({ type: 'reminders' });
+      if (result.sent === 0 && result.failed === 0) {
+        alert("No reminders to send: no confirmed tours start in the next 48 hours, or everyone has already been reminded.");
+      } else {
+        alert(`✅ Sent ${result.sent} reminder(s)${result.failed ? `, ${result.failed} failed (see the Edge Function logs).` : '.'}`);
       }
+      fetchData();
+    } catch (err) {
+      alert("Error sending reminders: " + err.message);
     }
-
-    alert(`✅ Successfully sent reminders to ${successCount} customer(s)!`);
   };
 
   const updateStatus = async (id, newStatus) => {
-    try {
-      const { data: bookingData } = await supabase.from('bookings').select('*').eq('id', id).single();
-      await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
-      
-      if (newStatus === 'confirmed' && bookingData) {
-        const templateParams = {
-          to_email: bookingData.email,
-          first_name: bookingData.first_name,
-          destination: bookingData.destination,
-          start_date: bookingData.start_date,
-          end_date: bookingData.end_date,
-          guests: bookingData.guests,
-          booking_id: `YAL-${bookingData.id}`
-        };
-        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
-        alert("✅ Booking confirmed and email sent!");
-      } else {
-        alert("Status updated!");
-      }
-      fetchData();
-    } catch (error) {
-      alert("Error: " + error.message);
+    const { error } = await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
+    if (error) {
+      alert("Could not update the booking: " + error.message);
+      return;
     }
+
+    if (newStatus === 'confirmed') {
+      try {
+        await invokeBookingEmail({ type: 'confirmation', booking_id: id });
+        alert("✅ Booking confirmed and email sent!");
+      } catch (err) {
+        alert("Booking confirmed, but the email could not be sent: " + err.message);
+      }
+    } else {
+      alert("Status updated!");
+    }
+    fetchData();
   };
 
   const updatePaymentStatus = async (id, newPaymentStatus) => {
-    await supabase.from('bookings').update({ payment_status: newPaymentStatus }).eq('id', id);
+    const { error } = await supabase.from('bookings').update({ payment_status: newPaymentStatus }).eq('id', id);
+    if (error) {
+      alert("Could not update the payment status: " + error.message);
+      return;
+    }
     fetchData();
   };
 
@@ -182,16 +186,42 @@ export default function Admin() {
 
   const saveBookingEdits = async (e) => {
     e.preventDefault();
-    await supabase.from('bookings').update({
+    const previousStatus = editingBooking.status;
+
+    const { error } = await supabase.from('bookings').update({
       status: bookingForm.status,
       payment_status: bookingForm.payment_status,
-      special_requests: bookingForm.special_requests,
-      notes: bookingForm.notes
+      special_requests: bookingForm.special_requests
     }).eq('id', editingBooking.id);
-    
+
+    if (error) {
+      alert("Could not save the booking: " + error.message);
+      return;
+    }
+
+    const { error: notesError } = await supabase.from('booking_notes').upsert({
+      booking_id: editingBooking.id,
+      notes: bookingForm.notes,
+      updated_by: user?.email || null,
+      updated_at: new Date().toISOString()
+    });
+
+    let message = "Booking updated successfully!";
+    if (notesError) {
+      console.error('Notes save failed:', notesError);
+      message = "Booking saved, but the internal notes could not be saved: " + notesError.message;
+    } else if (bookingForm.status === 'confirmed' && previousStatus !== 'confirmed') {
+      try {
+        await invokeBookingEmail({ type: 'confirmation', booking_id: editingBooking.id });
+        message = "Booking updated and confirmation email sent!";
+      } catch (err) {
+        message = "Booking updated, but the confirmation email could not be sent: " + err.message;
+      }
+    }
+
     setEditingBooking(null);
     fetchData();
-    alert("Booking updated successfully!");
+    alert(message);
   };
 
   // --- STAFF MANAGEMENT ---
@@ -204,7 +234,7 @@ export default function Admin() {
     e.preventDefault();
     try {
       const { data, error } = await supabase.functions.invoke('admin-create-staff', {
-        body: { email: newStaffEmail, full_name: newStaffName, role: 'staff' },
+        body: { email: newStaffEmail.trim().toLowerCase(), full_name: newStaffName.trim(), role: 'staff' },
       });
       if (error || !data?.success) {
         throw new Error(data?.error || error?.message || 'Failed to add staff member');
@@ -226,11 +256,19 @@ export default function Admin() {
     }
   };
 
-  const handleRemoveStaff = async (email) => {
-    if (window.confirm(`Remove ${email} from the team?`)) {
-      await supabase.from('staff').delete().eq('email', email);
-      fetchStaff();
+  const handleRemoveStaff = async (member) => {
+    const warning = member.role === 'admin'
+      ? `${member.email} is an ADMIN. Remove them from the team?`
+      : `Remove ${member.email} from the team?`;
+    if (!window.confirm(warning)) return;
+
+    // Removes dashboard access only; their login (as a customer) stays.
+    const { error } = await supabase.from('staff').delete().eq('email', member.email);
+    if (error) {
+      alert("Could not remove this team member: " + error.message);
+      return;
     }
+    fetchStaff();
   };
 
   // --- TOUR MANAGEMENT ---
@@ -241,13 +279,13 @@ export default function Admin() {
 
   const handleEditTour = (tour) => {
     setEditingTour(tour);
-    setImageFile(null); 
+    setImageFile(null);
     setNewTour({
-      title: tour.title || '', 
-      location: tour.location || '', 
+      title: tour.title || '',
+      location: tour.location || '',
       category: tour.category || '',
-      price: tour.price || '', 
-      duration: tour.duration || '', 
+      price: tour.price || '',
+      duration: tour.duration || '',
       image_url: tour.image_url || '',
       description: tour.description || '',
       included: tour.included ? tour.included.join(', ') : '',
@@ -256,6 +294,7 @@ export default function Admin() {
       itinerary: tour.itinerary ? (Array.isArray(tour.itinerary) ? tour.itinerary.join('\n') : tour.itinerary) : '',
       is_halal: tour.is_halal !== undefined ? tour.is_halal : true
     });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleTourSubmit = async (e) => {
@@ -263,8 +302,11 @@ export default function Admin() {
     try {
       let finalImageUrl = newTour.image_url;
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+        if (!imageFile.type.startsWith('image/')) throw new Error('Please choose an image file.');
+        if (imageFile.size > MAX_IMAGE_BYTES) throw new Error('The image is larger than 5 MB. Please choose a smaller one.');
+
+        const fileExt = (imageFile.name.split('.').pop() || 'jpg').toLowerCase();
+        const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('tour-images').upload(fileName, imageFile);
         if (uploadError) throw uploadError;
         const { data } = supabase.storage.from('tour-images').getPublicUrl(fileName);
@@ -276,28 +318,30 @@ export default function Admin() {
       const galleryArray = newTour.gallery.split(',').map(item => item.trim()).filter(item => item !== '');
       const itineraryArray = newTour.itinerary.split('\n').map(item => item.trim()).filter(item => item !== '');
 
+      const price = Number(newTour.price);
+      if (!Number.isFinite(price) || price < 0) throw new Error('Please enter a valid price.');
+
       const tourData = {
-        title: newTour.title, 
-        location: newTour.location, 
+        title: newTour.title.trim(),
+        location: newTour.location.trim(),
         category: newTour.category,
-        price: Number(newTour.price), 
-        duration: newTour.duration, 
+        price,
+        duration: newTour.duration.trim(),
         image_url: finalImageUrl,
-        description: newTour.description, 
-        included: includedArray, 
+        description: newTour.description,
+        included: includedArray,
         excluded: excludedArray,
         gallery: galleryArray,
-        itinerary: itineraryArray, 
+        itinerary: itineraryArray,
         is_halal: newTour.is_halal
       };
 
-      if (editingTour) {
-        await supabase.from('tours').update(tourData).eq('id', editingTour.id);
-      } else {
-        await supabase.from('tours').insert([tourData]);
-      }
+      const { error } = editingTour
+        ? await supabase.from('tours').update(tourData).eq('id', editingTour.id)
+        : await supabase.from('tours').insert([tourData]);
+      if (error) throw error;
 
-      setNewTour({ title: '', location: '', category: '', price: '', duration: '', image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true });
+      setNewTour(EMPTY_TOUR);
       setImageFile(null);
       setEditingTour(null);
       fetchData();
@@ -309,22 +353,32 @@ export default function Admin() {
   };
 
   const handleApproveReview = async (id) => {
-    await supabase.from('reviews').update({ is_approved: true }).eq('id', id);
+    const { error } = await supabase.from('reviews').update({ is_approved: true }).eq('id', id);
+    if (error) {
+      alert("Could not approve the review: " + error.message);
+      return;
+    }
     fetchData();
   };
 
   const handleDeleteReview = async (id) => {
-    if (window.confirm("Delete this review permanently?")) {
-      await supabase.from('reviews').delete().eq('id', id);
-      fetchData();
+    if (!window.confirm("Delete this review permanently?")) return;
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) {
+      alert("Could not delete the review: " + error.message);
+      return;
     }
+    fetchData();
   };
 
   const handleDeleteTour = async (id) => {
-    if (window.confirm("Are you sure you want to delete this tour?")) {
-      await supabase.from('tours').delete().eq('id', id);
-      fetchData();
+    if (!window.confirm("Are you sure you want to delete this tour?")) return;
+    const { error } = await supabase.from('tours').delete().eq('id', id);
+    if (error) {
+      alert("Could not delete the tour: " + error.message);
+      return;
     }
+    fetchData();
   };
 
   // --- ANALYTICS CALCULATIONS ---
@@ -338,7 +392,7 @@ export default function Admin() {
   bookings.forEach(booking => {
     destinationCounts[booking.destination] = (destinationCounts[booking.destination] || 0) + 1;
   });
-  
+
   const topDestinations = Object.entries(destinationCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
@@ -365,7 +419,6 @@ export default function Admin() {
         <div className="flex flex-wrap gap-2 md:gap-4 mb-6">
           <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'bookings' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Bookings ({bookings.length})</button>
           <button onClick={() => setActiveTab('contacts')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'contacts' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Messages ({contacts.length})</button>
-          <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'reviews' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Reviews ({reviews.filter(r => !r.is_approved).length} Pending)</button>
           
           {/* NEW: Analytics Tab (Admin Only) */}
           {userRole === 'admin' && (
@@ -374,6 +427,7 @@ export default function Admin() {
 
           {userRole === 'admin' && (
             <>
+              <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'reviews' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Reviews ({reviews.filter(r => !r.is_approved).length} Pending)</button>
               <button onClick={() => setActiveTab('tours')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'tours' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Tours</button>
               <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'team' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Team Management</button>
             </>
@@ -408,11 +462,12 @@ export default function Admin() {
                       <td className="p-4">
                         <div className="font-bold text-gray-800">{booking.first_name} {booking.last_name}</div>
                         <div className="text-gray-500 text-xs">{booking.email} | {booking.phone}</div>
+                        <div className="text-gray-400 text-xs">{bookingRef(booking.id)}</div>
                       </td>
                       <td className="p-4 capitalize">{booking.destination}</td>
                       <td className="p-4 text-gray-600">{booking.start_date} to {booking.end_date}</td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : booking.status === 'completed' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'}`}>
                           {booking.status}
                         </span>
                       </td>
@@ -433,7 +488,7 @@ export default function Admin() {
                         </div>
                         <div className="flex gap-2 mt-1">
                           <a href={`mailto:${booking.email}`} className="text-blue-600 hover:underline text-xs">Email</a>
-                          <a href={`https://wa.me/${booking.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp</a>
+                          <a href={`https://wa.me/${(booking.phone || '').replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp</a>
                         </div>
                       </td>
                     </tr>
@@ -462,8 +517,8 @@ export default function Admin() {
                       <td className="p-4 text-gray-600">{contact.email}<br/>{contact.phone}</td>
                       <td className="p-4 text-gray-700 max-w-xs truncate">{contact.message}</td>
                       <td className="p-4 flex flex-col gap-1">
-                        <a href={`mailto:${contact.email}?subject=Re: Your message to Yalamlam`} className="text-blue-600 hover:underline text-xs">Email Reply</a>
-                        {contact.phone && <a href={`https://wa.me/${contact.phone.replace(/\D/g,'')}?text=Assalamu Alaikum ${contact.name}, thank you for contacting Yalamlam...`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp Reply</a>}
+                        <a href={`mailto:${contact.email}?subject=${encodeURIComponent('Re: Your message to Yalamlam')}`} className="text-blue-600 hover:underline text-xs">Email Reply</a>
+                        {contact.phone && <a href={`https://wa.me/${contact.phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Assalamu Alaikum ${contact.name}, thank you for contacting Yalamlam...`)}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp Reply</a>}
                       </td>
                     </tr>
                   ))}
@@ -536,7 +591,7 @@ export default function Admin() {
                   <p className="text-4xl font-bold text-yellow-600 mt-2">{pendingBookings}</p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-purple-500">
-                  <p className="text-gray-500 text-sm font-medium uppercase">New Messages</p>
+                  <p className="text-gray-500 text-sm font-medium uppercase">Total Messages</p>
                   <p className="text-4xl font-bold text-purple-600 mt-2">{totalContacts}</p>
                 </div>
               </div>
@@ -595,12 +650,12 @@ export default function Admin() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl">
-                      <span className="text-2xl">✅</span>
+                    <div className="flex items-start gap-4 p-4 bg-red-50 rounded-xl">
+                      <span className="text-2xl">🚫</span>
                       <div>
-                        <p className="font-bold text-gray-800">System Health</p>
+                        <p className="font-bold text-gray-800">Cancellations</p>
                         <p className="text-sm text-gray-600">
-                          All systems operational. Automated emails are active.
+                          {cancelledBookings} booking(s) have been cancelled.
                         </p>
                       </div>
                     </div>
@@ -659,7 +714,7 @@ export default function Admin() {
                     {editingTour ? 'Update Tour' : 'Add Tour'}
                   </button>
                 </div>
-                {editingTour && <button type="button" onClick={() => { setEditingTour(null); setNewTour({ title: '', location: '', category: '', price: '', duration: '', image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true }); }} className="text-red-500 text-sm hover:underline mt-2">Cancel Edit</button>}
+                {editingTour && <button type="button" onClick={() => { setEditingTour(null); setImageFile(null); setNewTour(EMPTY_TOUR); }} className="text-red-500 text-sm hover:underline mt-2">Cancel Edit</button>}
               </form>
 
               <h3 className="text-lg font-bold text-gray-700 mb-4">All Tours</h3>
@@ -690,8 +745,8 @@ export default function Admin() {
             <div>
               <h2 className="text-xl font-bold text-safari-green mb-4">Manage Staff Access</h2>
               <p className="text-gray-600 mb-6 text-sm">
-                <strong>Step 1:</strong> Go to Supabase Dashboard -{'>'} Authentication -{'>'} Users -{'>'} "Invite User" to create their login.<br/>
-                <strong>Step 2:</strong> Add their email below to grant them access to this dashboard.
+                Enter their name and email below. This creates their login automatically and shows you a temporary password to share with them.
+                If the email already has an account, they are simply given dashboard access and keep their existing password.
               </p>
               
               <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 mb-8 bg-gray-50 p-6 rounded-lg">
@@ -714,7 +769,7 @@ export default function Admin() {
                         <td className="p-4 capitalize">{member.role || 'staff'}</td>
                         <td className="p-4">
                           {member.email !== user.email && (
-                            <button onClick={() => handleRemoveStaff(member.email)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Remove</button>
+                            <button onClick={() => handleRemoveStaff(member)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Remove</button>
                           )}
                         </td>
                       </tr>
@@ -758,7 +813,7 @@ export default function Admin() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Internal Notes (Only admins see this)</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Internal Notes (staff only, never shown to customers)</label>
                 <textarea name="notes" value={bookingForm.notes} onChange={handleBookingFormChange} rows="3" className="w-full p-2 border rounded" placeholder="e.g., Customer prefers window seat, allergic to nuts..."></textarea>
               </div>
 
