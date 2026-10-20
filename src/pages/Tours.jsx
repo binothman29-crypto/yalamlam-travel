@@ -172,9 +172,9 @@ export default function Tours() {
                     alt={tour.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  {tour.is_halal && (
-                    <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                      ✅ {t('halalCertified')}
+                  {tour.halal_percentage > 0 && (
+                    <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                      ✅ {tour.halal_percentage}% {t('halalFriendly') || 'Halal'}
                     </span>
                   )}
                   <span className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm text-safari-green text-sm font-bold px-3 py-1 rounded-lg shadow-sm">

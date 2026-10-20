@@ -10,7 +10,7 @@ const escapeLike = (value) => value.replace(/[\\%_]/g, '\\$&');
 
 const EMPTY_TOUR = {
   title: '', location: '', category: '', price: '', duration: '',
-  image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', is_halal: true
+  image_url: '', description: '', included: '', excluded: '', gallery: '', itinerary: '', halal_percentage: 100
 };
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -273,8 +273,8 @@ export default function Admin() {
 
   // --- TOUR MANAGEMENT ---
   const handleTourChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setNewTour(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    const { name, value, type, } = e.target;
+    setNewTour(prev => ({ ...prev, [name]: type === 'number' || type === 'range' ? Number(value) : value }));
   };
 
   const handleEditTour = (tour) => {
@@ -292,7 +292,7 @@ export default function Admin() {
       excluded: tour.excluded ? tour.excluded.join(', ') : '',
       gallery: tour.gallery ? tour.gallery.join(', ') : '',
       itinerary: tour.itinerary ? (Array.isArray(tour.itinerary) ? tour.itinerary.join('\n') : tour.itinerary) : '',
-      is_halal: tour.is_halal !== undefined ? tour.is_halal : true
+      halal_percentage: tour.halal_percentage !== undefined ? tour.halal_percentage : 100
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -333,7 +333,7 @@ export default function Admin() {
         excluded: excludedArray,
         gallery: galleryArray,
         itinerary: itineraryArray,
-        is_halal: newTour.is_halal
+        halal_percentage: Number(newTour.halal_percentage)  || 0
       };
 
       const { error } = editingTour
@@ -704,18 +704,38 @@ export default function Admin() {
                   <label className="block text-xs font-bold text-gray-500 mb-1">Day-by-Day Itinerary (one day per line)</label>
                   <textarea name="itinerary" value={newTour.itinerary} onChange={handleTourChange} placeholder="Day 1: Arrival&#10;Day 2: Safari" rows="4" className="p-3 border rounded-lg w-full font-mono text-sm"></textarea>
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" name="is_halal" checked={newTour.is_halal} onChange={handleTourChange} className="h-5 w-5" />
-                    <span className="text-sm font-bold">100% Halal Friendly</span>
+
+               <div className="flex flex-col gap-4 mt-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-gray-700">
+                    Halal Friendliness: <span className="text-safari-green text-lg">{newTour.halal_percentage}%</span>
                   </label>
-                  <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition">
-                    {editingTour ? 'Update Tour' : 'Add Tour'}
-                  </button>
+                  <input 
+                    type="range" 
+                    name="halal_percentage" 
+                    min="0" 
+                    max="100" 
+                    step="10"
+                    value={newTour.halal_percentage} 
+                    onChange={handleTourChange} 
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-safari-green"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>0% (Not Halal)</span>
+                    <span>50% (Partially Halal)</span>
+                    <span>100% (Fully Halal)</span>
+                  </div>
                 </div>
-                {editingTour && <button type="button" onClick={() => { setEditingTour(null); setImageFile(null); setNewTour(EMPTY_TOUR); }} className="text-red-500 text-sm hover:underline mt-2">Cancel Edit</button>}
+                <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition self-end">
+                  {editingTour ? 'Update Tour' : 'Add Tour'}
+                </button>
+                </div>
               </form>
+                {editingTour && (
+                  <button type="button" onClick={() => { setEditingTour(null); setImageFile(null); setNewTour(EMPTY_TOUR); }} className="text-red-500 text-sm hover:underline mt-2">
+                    Cancel Edit
+                  </button>
+              )}
 
               <h3 className="text-lg font-bold text-gray-700 mb-4">All Tours</h3>
               <div className="overflow-x-auto">
