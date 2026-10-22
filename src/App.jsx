@@ -1,4 +1,6 @@
-import { Routes, Route } from 'react-router-dom';
+import {Routes, Route, useLocation} from 'react-router-dom';
+import { useEffect } from 'react';
+import ReactGA from 'react-ga4';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -19,6 +21,13 @@ import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
 
 function App() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Send a pageview to Google Analytics whenever the route changes
+    ReactGA.send({ hitType: 'pageview', page: location.pathname + location.search });
+  }, [location]);
+
   return (
     // flex flex-col and min-h-screen ensures the footer stays at the bottom!
     <div className="min-h-screen bg-safari-sand text-safari-green font-body flex flex-col">
