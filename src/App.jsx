@@ -1,3 +1,4 @@
+import Blog from './pages/Blog';
 import {Routes, Route, useLocation} from 'react-router-dom';
 import { useEffect } from 'react';
 import ReactGA from 'react-ga4';
@@ -47,6 +48,7 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/tours/:id" element={<TourDetails />} />
+          <Route path="/blog" element={<Blog />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/legal/:type" element={<Legal />} />
