@@ -94,7 +94,16 @@ export default function TourDetails() {
     ? tour.excluded 
     : (typeof tour.excluded === 'string' ? tour.excluded.split(',').map(i => i.trim()).filter(i => i !== '') : []);
 
-  return (
+  // Dynamically update the browser tab title based on the tour
+  useEffect(() => {
+    if (tour) {
+      document.title = `${tour.title} | Yalamlam Travel`;
+    } else {
+      document.title = 'Yalamlam Travel & Tours';
+    }
+  }, [tour]);
+
+    return (
     <div className="min-h-screen bg-safari-sand py-8 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Breadcrumb */}

@@ -168,6 +168,7 @@ export default function Tours() {
               <Link key={tour.id} to={`/tours/${tour.id}`} className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
                 <div className="relative h-56 overflow-hidden">
                   <img
+                    loading="lazy"
                     src={tour.image_url || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80'}
                     alt={tour.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
