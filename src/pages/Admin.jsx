@@ -50,6 +50,7 @@ export default function Admin() {
   // Staff Form State
   const [newStaffEmail, setNewStaffEmail] = useState('');
   const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState('manager'); // <-- ADDED FOR RBAC
 
   const navigate = useNavigate();
 
@@ -225,16 +226,15 @@ export default function Admin() {
   };
 
   // --- STAFF MANAGEMENT ---
-  // Calls the admin-create-staff Edge Function rather than inserting into
-  // `staff` directly: a plain insert only added a row (no login credentials
-  // at all), so the person had no way to actually sign in. The function
-  // creates a real Auth account (or reuses one if the email already has an
-  // account) with a temporary password, then adds them to `staff`.
   const handleAddStaff = async (e) => {
     e.preventDefault();
     try {
       const { data, error } = await supabase.functions.invoke('admin-create-staff', {
-        body: { email: newStaffEmail.trim().toLowerCase(), full_name: newStaffName.trim(), role: 'staff' },
+        body: { 
+          email: newStaffEmail.trim().toLowerCase(), 
+          full_name: newStaffName.trim(), 
+          role: newStaffRole // <-- UPDATED to use the selected role
+        },
       });
       if (error || !data?.success) {
         throw new Error(data?.error || error?.message || 'Failed to add staff member');
@@ -420,17 +420,21 @@ export default function Admin() {
           <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'bookings' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Bookings ({bookings.length})</button>
           <button onClick={() => setActiveTab('contacts')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'contacts' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Messages ({contacts.length})</button>
           
-          {/* NEW: Analytics Tab (Admin Only) */}
-          {userRole === 'admin' && (
+          {/* Analytics, Reviews, Tours: Visible to Admin AND Manager */}
+          {(userRole === 'admin' || userRole === 'manager') && (
             <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'analytics' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>📊 Analytics</button>
           )}
 
-          {userRole === 'admin' && (
+          {(userRole === 'admin' || userRole === 'manager') && (
             <>
               <button onClick={() => setActiveTab('reviews')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'reviews' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Reviews ({reviews.filter(r => !r.is_approved).length} Pending)</button>
               <button onClick={() => setActiveTab('tours')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'tours' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Tours</button>
-              <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'team' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Team Management</button>
             </>
+          )}
+
+          {/* Team Management: Visible ONLY to Admin */}
+          {userRole === 'admin' && (
+            <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'team' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Team Management</button>
           )}
         </div>
 
@@ -528,8 +532,8 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- REVIEWS TAB --- */}
-          {activeTab === 'reviews' && userRole === 'admin' && (
+          {/* --- REVIEWS TAB (ADMIN & MANAGER) --- */}
+          {activeTab === 'reviews' && (userRole === 'admin' || userRole === 'manager') && (
             <div className="overflow-x-auto">
               <h2 className="text-xl font-bold text-safari-green mb-4">Manage Customer Reviews</h2>
               <table className="w-full text-left border-collapse">
@@ -571,8 +575,8 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- ANALYTICS TAB (ADMIN ONLY) --- */}
-          {activeTab === 'analytics' && userRole === 'admin' && (
+          {/* --- ANALYTICS TAB (ADMIN & MANAGER) --- */}
+          {activeTab === 'analytics' && (userRole === 'admin' || userRole === 'manager') && (
             <div className="space-y-8">
               <h2 className="text-2xl font-bold text-safari-green">Business Overview</h2>
               
@@ -665,8 +669,8 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- TOURS TAB (ADMIN ONLY) --- */}
-          {activeTab === 'tours' && userRole === 'admin' && (
+          {/* --- TOURS TAB (ADMIN & MANAGER) --- */}
+          {activeTab === 'tours' && (userRole === 'admin' || userRole === 'manager') && (
             <div>
               <h2 className="text-xl font-bold text-safari-green mb-4">{editingTour ? 'Edit Tour' : 'Add New Tour'}</h2>
               <form onSubmit={handleTourSubmit} className="space-y-4 mb-8 bg-gray-50 p-6 rounded-lg">
@@ -772,6 +776,13 @@ export default function Admin() {
               <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 mb-8 bg-gray-50 p-6 rounded-lg">
                 <input type="text" value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Staff Member Name" required className="p-3 border rounded-lg flex-1" />
                 <input type="email" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} placeholder="Staff Email Address" required className="p-3 border rounded-lg flex-1" />
+                
+                {/* ADDED ROLE DROPDOWN */}
+                <select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="p-3 border rounded-lg md:w-48 bg-white">
+                  <option value="manager">Manager (Tours, Bookings, Reviews)</option>
+                  <option value="admin">Admin (Full Access)</option>
+                </select>
+
                 <button type="submit" className="bg-safari-green text-white px-6 py-3 rounded-lg font-bold hover:bg-safari-teal transition">Grant Access</button>
               </form>
 
