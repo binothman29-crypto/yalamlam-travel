@@ -20,6 +20,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
 import Blog from './pages/Blog';
+import HalalResorts from './pages/HalalResorts';
 
 // Initialize GA4
 ReactGA.initialize('G-K4K4NMCD4M');
@@ -52,6 +53,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/tours/:id" element={<TourDetails />} />
           <Route path="/blog" element={<Blog />} />
+          <Route path="/halal-resorts" element={<HalalResorts />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/legal/:type" element={<Legal />} />

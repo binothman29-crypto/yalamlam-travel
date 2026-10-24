@@ -24,6 +24,9 @@ export default function Blog() {
             The good news? Zanzibar is one of the world's best-kept secrets for a luxurious, 100% Halal honeymoon. 
             With its rich Swahili-Islamic heritage, stunning private beaches, and welcoming culture, it is the perfect 
             destination to celebrate your new beginning with peace of mind.
+            <Link to="/halal-resorts" className="text-safari-green font-bold underline ml-1">
+              (Looking for family resorts instead? Read our Top 5 Halal-Friendly Family Resorts guide here!)
+            </Link>
           </p>
 
           <h2 className="text-2xl font-bold text-safari-green mt-8 mb-4">1. Why Zanzibar is Perfect for Muslim Couples</h2>
