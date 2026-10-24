@@ -1,4 +1,3 @@
-import Blog from './pages/Blog';
 import {Routes, Route, useLocation} from 'react-router-dom';
 import { useEffect } from 'react';
 import ReactGA from 'react-ga4';
@@ -20,6 +19,10 @@ import Legal from './pages/Legal';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
+import Blog from './pages/Blog';
+
+// Initialize GA4
+ReactGA.initialize('G-K4K4NMCD4M');
 
 function App() {
   const location = useLocation();
