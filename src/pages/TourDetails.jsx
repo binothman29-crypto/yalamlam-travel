@@ -13,6 +13,8 @@ export default function TourDetails() {
   };
 
   const { id } = useParams();
+  
+  // 1. ALL useState hooks MUST be at the top
   const [tour, setTour] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
@@ -22,6 +24,7 @@ export default function TourDetails() {
   const [newReview, setNewReview] = useState({ name: '', rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // 2. ALL useEffect hooks MUST be at the top, BEFORE any 'return'
   useEffect(() => {
     const fetchTour = async () => {
       const { data } = await supabase
@@ -52,12 +55,34 @@ export default function TourDetails() {
     fetchTour();
   }, [id]);
 
-  // Use 'tr' to prevent blank pages if translation keys are missing
+  // MOVED THIS USEEFFECT TO THE TOP!
+  useEffect(() => {
+    if (tour) {
+      document.title = `${tour.title} | Yalamlam Travel`;
+    } else {
+      document.title = 'Yalamlam Travel & Tours';
+    }
+  }, [tour]);
+
+  // 3. EARLY RETURNS MUST COME AFTER ALL HOOKS
   if (loading) return <div className="min-h-screen flex items-center justify-center text-safari-green">{tr('loadingTourDetails', 'Loading tour details...')}</div>;
   if (!tour) return <div className="min-h-screen flex items-center justify-center text-gray-800">{tr('tourNotFound', 'Tour not found.')} <Link to="/tours" className="text-safari-green underline ml-1">{tr('goBack', 'Go back to tours')}</Link></div>;
 
+  // 4. Regular variables and logic
   const galleryImages = Array.isArray(tour.gallery) ? tour.gallery.filter(Boolean) : [];
   const images = galleryImages.length > 0 ? galleryImages : [tour.image_url || FALLBACK_IMAGE];
+
+  const itineraryArray = Array.isArray(tour.itinerary) 
+    ? tour.itinerary 
+    : (typeof tour.itinerary === 'string' ? tour.itinerary.split('\n').filter(line => line.trim() !== '') : []);
+
+  const includedArray = Array.isArray(tour.included) 
+    ? tour.included 
+    : (typeof tour.included === 'string' ? tour.included.split(',').map(i => i.trim()).filter(i => i !== '') : []);
+
+  const excludedArray = Array.isArray(tour.excluded) 
+    ? tour.excluded 
+    : (typeof tour.excluded === 'string' ? tour.excluded.split(',').map(i => i.trim()).filter(i => i !== '') : []);
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -81,41 +106,17 @@ export default function TourDetails() {
     setSubmittingReview(false);
   };
 
-  // Safely parse strings into arrays to prevent ".map is not a function" crashes
-  const itineraryArray = Array.isArray(tour.itinerary) 
-    ? tour.itinerary 
-    : (typeof tour.itinerary === 'string' ? tour.itinerary.split('\n').filter(line => line.trim() !== '') : []);
-
-  const includedArray = Array.isArray(tour.included) 
-    ? tour.included 
-    : (typeof tour.included === 'string' ? tour.included.split(',').map(i => i.trim()).filter(i => i !== '') : []);
-
-  const excludedArray = Array.isArray(tour.excluded) 
-    ? tour.excluded 
-    : (typeof tour.excluded === 'string' ? tour.excluded.split(',').map(i => i.trim()).filter(i => i !== '') : []);
-
-  // Dynamically update the browser tab title based on the tour
-  useEffect(() => {
-    if (tour) {
-      document.title = `${tour.title} | Yalamlam Travel`;
-    } else {
-      document.title = 'Yalamlam Travel & Tours';
-    }
-  }, [tour]);
-
-    return (
+  // 5. THE MAIN RETURN STATEMENT
+  return (
     <div className="min-h-screen bg-safari-sand py-8 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
-        {/* Breadcrumb */}
         <Link to="/tours" className="text-sm text-gray-500 hover:text-safari-green mb-4 inline-block">{tr('backToAllTours', 'Back to all tours')}</Link>
 
-        {/* Title & Header */}
         <div className="mb-6">
           <h1 className="text-3xl md:text-4xl font-bold text-safari-green mb-2">{tour.title}</h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
             <span className="flex items-center gap-1">📍 {tour.location}</span>
             <span className="flex items-center gap-1">⏱️ {tour.duration}</span>
-            {/* Updated to show the new halal_percentage */}
             {tour.halal_percentage > 0 && (
               <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                 ✅ {tour.halal_percentage}% {tr('halalFriendly', 'Halal Friendly')}
@@ -124,7 +125,6 @@ export default function TourDetails() {
           </div>
         </div>
 
-        {/* Image Gallery */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="md:col-span-2 rounded-2xl overflow-hidden shadow-lg">
             <img src={images[activeImage]} alt={tour.title} className="w-full h-96 object-cover" />
@@ -143,16 +143,12 @@ export default function TourDetails() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Details + Reviews */}
           <div className="lg:col-span-2 space-y-8">
-
-            {/* Description */}
             <div className="bg-white p-6 rounded-2xl shadow-sm">
               <h2 className="text-2xl font-bold text-safari-green mb-4">{tr('aboutTour', 'About this tour')}</h2>
               <p className="text-gray-700 leading-relaxed whitespace-pre-line">{tour.description}</p>
             </div>
 
-            {/* Itinerary (Safely mapped) */}
             {itineraryArray.length > 0 && (
               <div className="bg-white p-6 rounded-2xl shadow-sm">
                 <h2 className="text-2xl font-bold text-safari-green mb-4">{tr('itinerary', 'Itinerary')}</h2>
@@ -171,7 +167,6 @@ export default function TourDetails() {
               </div>
             )}
 
-            {/* Included & Excluded (Safely mapped) */}
             <div className="grid md:grid-cols-2 gap-6">
               {includedArray.length > 0 && (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500">
@@ -200,7 +195,6 @@ export default function TourDetails() {
               )}
             </div>
 
-            {/* --- REVIEWS SECTION --- */}
             <div className="bg-white p-6 rounded-2xl shadow-sm">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
@@ -220,7 +214,6 @@ export default function TourDetails() {
                 </button>
               </div>
 
-              {/* Review Form */}
               {showReviewForm && (
                 <form onSubmit={handleSubmitReview} className="bg-gray-50 p-6 rounded-xl mb-8 space-y-4 border border-gray-200">
                   <h3 className="font-bold text-lg text-gray-800">{tr('shareExperience', 'Share your experience')}</h3>
@@ -266,7 +259,6 @@ export default function TourDetails() {
                 </form>
               )}
 
-              {/* Reviews List */}
               {reviews.length === 0 ? (
                 <p className="text-gray-500 italic">{tr('noReviewsYet', 'No reviews yet. Be the first to share your experience!')}</p>
               ) : (
@@ -286,7 +278,6 @@ export default function TourDetails() {
             </div>
           </div>
 
-          {/* Right Column: Booking Card (Sticky) */}
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-2xl shadow-lg sticky top-24">
               <div className="flex items-baseline gap-2 mb-6">
