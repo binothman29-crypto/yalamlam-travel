@@ -6,19 +6,36 @@ import { useLanguage } from '../context/LanguageContext';
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [isStaff, setIsStaff] = useState(false); // <-- NEW: Track if user is staff
   const [showLangMenu, setShowLangMenu] = useState(false);
   const navigate = useNavigate();
   const { lang, t, changeLanguage } = useLanguage();
 
   useEffect(() => {
+    const checkAuthAndStaff = async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Check if the user's email exists in the staff table
+        const { data: staffData } = await supabase
+          .from('staff')
+          .select('role')
+          .eq('email', currentUser.email.toLowerCase())
+          .maybeSingle();
+        
+        setIsStaff(!!staffData); // True if staffData exists, false otherwise
+      } else {
+        setIsStaff(false);
+      }
+    };
+
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
+      checkAuthAndStaff(session?.user || null);
     };
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+      checkAuthAndStaff(session?.user || null);
     });
 
     return () => subscription.unsubscribe();
@@ -27,15 +44,16 @@ export default function Navbar() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setIsStaff(false);
     navigate('/');
     setIsMenuOpen(false);
   };
 
   const languages = [
-    { code: 'en', name: 'English'},
-    { code: 'ar', name: 'العربية'},
-    { code: 'fr', name: 'French'},
-    { code: 'tr', name: 'Turkish'},
+    { code: 'en', name: 'English', flag: '🇬🇧' },
+    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'fr', name: 'French', flag: '🇫🇷' },
+    { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
   ];
 
   const currentLang = languages.find(l => l.code === lang);
@@ -44,7 +62,7 @@ export default function Navbar() {
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-20">
-          {/* Logo - Always on left in LTR, right in RTL */}
+          {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 flex-shrink-0">
             <img src="/logo.png" alt="Yalamlam Travel" className="h-12 w-12" />
             <div className="hidden sm:block">
@@ -92,6 +110,13 @@ export default function Navbar() {
             
             {user ? (
               <div className="flex items-center space-x-3 flex-shrink-0">
+                {/* NEW: Admin Dashboard Link (Only visible to staff) */}
+                {isStaff && (
+                  <Link to="/admin" className="text-safari-gold font-bold hover:text-yellow-600 transition hidden md:inline flex items-center gap-1">
+                    ⚙️ Admin
+                  </Link>
+                )}
+                
                 <Link to="/dashboard" className="text-safari-green font-bold hover:text-safari-teal transition hidden md:inline">{t('myDashboard')}</Link>
                 <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition">{t('logout')}</button>
               </div>
@@ -146,6 +171,13 @@ export default function Navbar() {
               
               {user ? (
                 <>
+                  {/* NEW: Mobile Admin Dashboard Link (Only visible to staff) */}
+                  {isStaff && (
+                    <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="text-safari-gold font-bold transition px-2 flex items-center gap-2">
+                      ⚙️ Admin Dashboard
+                    </Link>
+                  )}
+                  
                   <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="text-safari-green font-bold transition px-2">{t('myDashboard')}</Link>
                   <button onClick={handleLogout} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition mx-2">{t('logout')}</button>
                 </>
