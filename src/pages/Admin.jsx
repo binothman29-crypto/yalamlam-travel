@@ -410,6 +410,11 @@ export default function Admin() {
             <p className="text-gray-500 text-sm">Welcome back, {user.email} ({userRole})</p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
+            {/* NEW BUTTON: View Public Website */}
+            <Link to="/" className="bg-safari-gold text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition w-full md:w-auto text-center font-bold flex items-center justify-center gap-2">
+              🌍 View Public Website
+            </Link>
+            
             <Link to="/change-password" className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center">Change Password</Link>
             <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition w-full md:w-auto">Logout</button>
           </div>
