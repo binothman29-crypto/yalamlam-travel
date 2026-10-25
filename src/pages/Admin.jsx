@@ -2,10 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
 
-// Same short reference the customer dashboard and the emails use.
 const bookingRef = (id) => `YAL-${String(id).substring(0, 8).toUpperCase()}`;
-
-// Escape % and _ so an email address can be matched safely with ilike.
 const escapeLike = (value) => value.replace(/[\\%_]/g, '\\$&');
 
 const EMPTY_TOUR = {
@@ -15,9 +12,6 @@ const EMPTY_TOUR = {
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-// Booking confirmations and reminders are sent by the send-booking-email Edge
-// Function (Resend). It checks on the server that the caller is staff, so no
-// email keys live in the browser.
 const invokeBookingEmail = async (body) => {
   const { data, error } = await supabase.functions.invoke('send-booking-email', { body });
   if (error || !data?.success) {
@@ -28,7 +22,7 @@ const invokeBookingEmail = async (body) => {
 
 export default function Admin() {
   const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null); // For RBAC
+  const [userRole, setUserRole] = useState(null);
   const [isStaff, setIsStaff] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [reviews, setReviews] = useState([]);
@@ -37,22 +31,37 @@ export default function Admin() {
   const [contacts, setContacts] = useState([]);
   const [tours, setTours] = useState([]);
   const [staffList, setStaffList] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]); // NEW
 
   const [activeTab, setActiveTab] = useState('bookings');
   const [editingBooking, setEditingBooking] = useState(null);
   const [bookingForm, setBookingForm] = useState({});
 
-  // Tour Form State (matches DB schema: included, excluded, gallery, itinerary)
   const [newTour, setNewTour] = useState(EMPTY_TOUR);
   const [editingTour, setEditingTour] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
-  // Staff Form State
   const [newStaffEmail, setNewStaffEmail] = useState('');
   const [newStaffName, setNewStaffName] = useState('');
-  const [newStaffRole, setNewStaffRole] = useState('manager'); // <-- ADDED FOR RBAC
+  const [newStaffRole, setNewStaffRole] = useState('manager');
 
   const navigate = useNavigate();
+
+  // --- NEW: Activity Logging Helper ---
+  const logActivity = async (action, details = '') => {
+    if (!user) return;
+    try {
+      await supabase.from('activity_logs').insert([{
+        user_email: user.email,
+        user_name: user.user_metadata?.full_name || user.email.split('@')[0],
+        action,
+        details,
+        user_agent: navigator.userAgent.substring(0, 200) // Truncate for storage
+      }]);
+    } catch (err) {
+      console.error('Failed to log activity:', err);
+    }
+  };
 
   // 1. Check Authentication & Staff Status
   useEffect(() => {
@@ -74,9 +83,10 @@ export default function Admin() {
 
         if (staffData) {
           setIsStaff(true);
-          setUserRole(staffData.role || 'staff'); // Capture role for RBAC
+          setUserRole(staffData.role || 'staff');
           fetchData();
           fetchStaff();
+          logActivity('Logged in', `User logged into admin dashboard`); // LOG LOGIN
         } else {
           alert("Access Denied: Your account is not authorized to view this dashboard.");
           await supabase.auth.signOut();
@@ -90,13 +100,13 @@ export default function Admin() {
   }, [navigate]);
 
   const fetchData = async () => {
-    const [toursRes, bookingsRes, notesRes, contactsRes, reviewsRes] = await Promise.all([
+    const [toursRes, bookingsRes, notesRes, contactsRes, reviewsRes, logsRes] = await Promise.all([
       supabase.from('tours').select('*').order('created_at', { ascending: false }),
       supabase.from('bookings').select('*').order('created_at', { ascending: false }),
       supabase.from('booking_notes').select('booking_id, notes'),
       supabase.from('contacts').select('*').order('created_at', { ascending: false }),
-      // tours(title) lets the reviews tab show the tour name
       supabase.from('reviews').select('*, tours(title)').order('created_at', { ascending: false }),
+      supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(200), // NEW
     ]);
 
     [['tours', toursRes], ['bookings', bookingsRes], ['booking_notes', notesRes], ['contacts', contactsRes], ['reviews', reviewsRes]]
@@ -104,14 +114,13 @@ export default function Admin() {
 
     setTours(toursRes.data || []);
 
-    // Internal notes live in their own staff-only table (customers can read
-    // their own booking row, so notes must never be stored on it).
     const notesById = {};
     (notesRes.data || []).forEach(n => { notesById[n.booking_id] = n.notes; });
     setBookings((bookingsRes.data || []).map(b => ({ ...b, notes: notesById[b.id] || '' })));
 
     setContacts(contactsRes.data || []);
     setReviews(reviewsRes.data || []);
+    setActivityLogs(logsRes.data || []); // NEW
   };
 
   const fetchStaff = async () => {
@@ -121,19 +130,20 @@ export default function Admin() {
   };
 
   const handleLogout = async () => {
+    await logActivity('Logged out', `User logged out of admin dashboard`); // LOG LOGOUT
     await supabase.auth.signOut();
     navigate('/login');
   };
 
   const sendUpcomingReminders = async () => {
-    if (!window.confirm("Send reminder emails to all customers with confirmed tours in the next 48 hours? Customers who already got a reminder are skipped.")) return;
-
+    if (!window.confirm("Send reminder emails to all customers with confirmed tours in the next 48 hours?")) return;
     try {
       const result = await invokeBookingEmail({ type: 'reminders' });
+      await logActivity('Sent reminders', `Sent ${result.sent} reminder(s), ${result.failed} failed`);
       if (result.sent === 0 && result.failed === 0) {
-        alert("No reminders to send: no confirmed tours start in the next 48 hours, or everyone has already been reminded.");
+        alert("No reminders to send.");
       } else {
-        alert(`✅ Sent ${result.sent} reminder(s)${result.failed ? `, ${result.failed} failed (see the Edge Function logs).` : '.'}`);
+        alert(`✅ Sent ${result.sent} reminder(s)${result.failed ? `, ${result.failed} failed.` : '.'}`);
       }
       fetchData();
     } catch (err) {
@@ -142,11 +152,13 @@ export default function Admin() {
   };
 
   const updateStatus = async (id, newStatus) => {
+    const booking = bookings.find(b => b.id === id);
     const { error } = await supabase.from('bookings').update({ status: newStatus }).eq('id', id);
     if (error) {
       alert("Could not update the booking: " + error.message);
       return;
     }
+    await logActivity('Updated booking status', `Booking ${bookingRef(id)} status changed from '${booking?.status}' to '${newStatus}' for ${booking?.first_name} ${booking?.last_name}`);
 
     if (newStatus === 'confirmed') {
       try {
@@ -162,11 +174,13 @@ export default function Admin() {
   };
 
   const updatePaymentStatus = async (id, newPaymentStatus) => {
+    const booking = bookings.find(b => b.id === id);
     const { error } = await supabase.from('bookings').update({ payment_status: newPaymentStatus }).eq('id', id);
     if (error) {
       alert("Could not update the payment status: " + error.message);
       return;
     }
+    await logActivity('Updated payment status', `Booking ${bookingRef(id)} payment changed to '${newPaymentStatus}' for ${booking?.first_name} ${booking?.last_name}`);
     fetchData();
   };
 
@@ -207,6 +221,8 @@ export default function Admin() {
       updated_at: new Date().toISOString()
     });
 
+    await logActivity('Edited booking', `Booking ${bookingRef(editingBooking.id)} updated. Status: ${bookingForm.status}, Payment: ${bookingForm.payment_status}`);
+
     let message = "Booking updated successfully!";
     if (notesError) {
       console.error('Notes save failed:', notesError);
@@ -225,7 +241,6 @@ export default function Admin() {
     alert(message);
   };
 
-  // --- STAFF MANAGEMENT ---
   const handleAddStaff = async (e) => {
     e.preventDefault();
     try {
@@ -233,19 +248,19 @@ export default function Admin() {
         body: { 
           email: newStaffEmail.trim().toLowerCase(), 
           full_name: newStaffName.trim(), 
-          role: newStaffRole // <-- UPDATED to use the selected role
+          role: newStaffRole
         },
       });
       if (error || !data?.success) {
         throw new Error(data?.error || error?.message || 'Failed to add staff member');
       }
 
+      await logActivity('Added staff member', `Added ${newStaffName} (${newStaffEmail}) with role '${newStaffRole}'`);
+
       if (data.tempPassword) {
-        alert(
-          `Staff member added! Share this temporary password with them so they can log in:\n\n${data.tempPassword}\n\nThey should change it afterwards using the "Change Password" button.`
-        );
+        alert(`Staff member added! Share this temporary password with them:\n\n${data.tempPassword}`);
       } else {
-        alert('That email already had an account -- they were added to the team and can log in with their existing password.');
+        alert('That email already had an account -- they were added to the team.');
       }
 
       setNewStaffEmail('');
@@ -262,18 +277,17 @@ export default function Admin() {
       : `Remove ${member.email} from the team?`;
     if (!window.confirm(warning)) return;
 
-    // Removes dashboard access only; their login (as a customer) stays.
     const { error } = await supabase.from('staff').delete().eq('email', member.email);
     if (error) {
       alert("Could not remove this team member: " + error.message);
       return;
     }
+    await logActivity('Removed staff member', `Removed ${member.full_name || member.email} (${member.role}) from the team`);
     fetchStaff();
   };
 
-  // --- TOUR MANAGEMENT ---
   const handleTourChange = (e) => {
-    const { name, value, type, } = e.target;
+    const { name, value, type } = e.target;
     setNewTour(prev => ({ ...prev, [name]: type === 'number' || type === 'range' ? Number(value) : value }));
   };
 
@@ -303,7 +317,7 @@ export default function Admin() {
       let finalImageUrl = newTour.image_url;
       if (imageFile) {
         if (!imageFile.type.startsWith('image/')) throw new Error('Please choose an image file.');
-        if (imageFile.size > MAX_IMAGE_BYTES) throw new Error('The image is larger than 5 MB. Please choose a smaller one.');
+        if (imageFile.size > MAX_IMAGE_BYTES) throw new Error('The image is larger than 5 MB.');
 
         const fileExt = (imageFile.name.split('.').pop() || 'jpg').toLowerCase();
         const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
@@ -333,13 +347,19 @@ export default function Admin() {
         excluded: excludedArray,
         gallery: galleryArray,
         itinerary: itineraryArray,
-        halal_percentage: Number(newTour.halal_percentage)  || 0
+        halal_percentage: Number(newTour.halal_percentage) || 0
       };
 
       const { error } = editingTour
         ? await supabase.from('tours').update(tourData).eq('id', editingTour.id)
         : await supabase.from('tours').insert([tourData]);
       if (error) throw error;
+
+      // LOG TOUR ACTION
+      await logActivity(
+        editingTour ? 'Updated tour' : 'Created tour',
+        `${editingTour ? 'Updated' : 'Created'} tour: "${newTour.title.trim()}" ($${price}) in ${newTour.location.trim()}`
+      );
 
       setNewTour(EMPTY_TOUR);
       setImageFile(null);
@@ -353,31 +373,37 @@ export default function Admin() {
   };
 
   const handleApproveReview = async (id) => {
+    const review = reviews.find(r => r.id === id);
     const { error } = await supabase.from('reviews').update({ is_approved: true }).eq('id', id);
     if (error) {
       alert("Could not approve the review: " + error.message);
       return;
     }
+    await logActivity('Approved review', `Approved review by ${review?.customer_name} for "${review?.tours?.title || 'Unknown Tour'}"`);
     fetchData();
   };
 
   const handleDeleteReview = async (id) => {
     if (!window.confirm("Delete this review permanently?")) return;
+    const review = reviews.find(r => r.id === id);
     const { error } = await supabase.from('reviews').delete().eq('id', id);
     if (error) {
       alert("Could not delete the review: " + error.message);
       return;
     }
+    await logActivity('Deleted review', `Deleted review by ${review?.customer_name} for "${review?.tours?.title || 'Unknown Tour'}"`);
     fetchData();
   };
 
   const handleDeleteTour = async (id) => {
     if (!window.confirm("Are you sure you want to delete this tour?")) return;
+    const tour = tours.find(t => t.id === id);
     const { error } = await supabase.from('tours').delete().eq('id', id);
     if (error) {
       alert("Could not delete the tour: " + error.message);
       return;
     }
+    await logActivity('Deleted tour', `Deleted tour: "${tour?.title}" ($${tour?.price})`);
     fetchData();
   };
 
@@ -410,11 +436,7 @@ export default function Admin() {
             <p className="text-gray-500 text-sm">Welcome back, {user.email} ({userRole})</p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
-            {/* NEW BUTTON: View Public Website */}
-            <Link to="/" className="bg-safari-gold text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition w-full md:w-auto text-center font-bold flex items-center justify-center gap-2">
-              🌍 View Public Website
-            </Link>
-            
+            <Link to="/" className="bg-safari-gold text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition w-full md:w-auto text-center font-bold">🌍 View Public Website</Link>
             <Link to="/change-password" className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center">Change Password</Link>
             <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition w-full md:w-auto">Logout</button>
           </div>
@@ -425,9 +447,8 @@ export default function Admin() {
           <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'bookings' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Bookings ({bookings.length})</button>
           <button onClick={() => setActiveTab('contacts')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'contacts' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Messages ({contacts.length})</button>
           
-          {/* Analytics, Reviews, Tours: Visible to Admin AND Manager */}
           {(userRole === 'admin' || userRole === 'manager') && (
-            <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'analytics' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>📊 Analytics</button>
+            <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'analytics' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}> Analytics</button>
           )}
 
           {(userRole === 'admin' || userRole === 'manager') && (
@@ -437,7 +458,11 @@ export default function Admin() {
             </>
           )}
 
-          {/* Team Management: Visible ONLY to Admin */}
+          {/* NEW: Activity Log Tab - Admin Only */}
+          {userRole === 'admin' && (
+            <button onClick={() => setActiveTab('activity')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'activity' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}> Activity Log</button>
+          )}
+
           {userRole === 'admin' && (
             <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-full font-semibold transition ${activeTab === 'team' ? 'bg-safari-green text-white' : 'bg-white text-gray-600'}`}>Team Management</button>
           )}
@@ -450,12 +475,7 @@ export default function Admin() {
             <div className="overflow-x-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-safari-green">Customer Bookings</h2>
-                <button 
-                  onClick={sendUpcomingReminders}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition flex items-center gap-2"
-                >
-                  🔔 Send 48h Reminders
-                </button>
+                <button onClick={sendUpcomingReminders} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition">🔔 Send 48h Reminders</button>
               </div>
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
@@ -482,7 +502,7 @@ export default function Admin() {
                       </td>
                       <td className="p-4 flex flex-col gap-2">
                         <div className="flex gap-2">
-                          <button onClick={() => openEditBooking(booking)} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold hover:bg-blue-200 ">Edit</button>
+                          <button onClick={() => openEditBooking(booking)} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold hover:bg-blue-200">Edit</button>
                           {booking.status === 'pending' && (
                             <button onClick={() => updateStatus(booking.id, 'confirmed')} className="text-safari-green font-bold hover:underline text-xs">Confirm</button>
                           )}
@@ -537,20 +557,15 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- REVIEWS TAB (ADMIN & MANAGER) --- */}
+          {/* --- REVIEWS TAB --- */}
           {activeTab === 'reviews' && (userRole === 'admin' || userRole === 'manager') && (
             <div className="overflow-x-auto">
               <h2 className="text-xl font-bold text-safari-green mb-4">Manage Customer Reviews</h2>
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
                   <tr>
-                    <th className="p-4">Date</th>
-                    <th className="p-4">Customer</th>
-                    <th className="p-4">Tour</th>
-                    <th className="p-4">Rating</th>
-                    <th className="p-4">Comment</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Actions</th>
+                    <th className="p-4">Date</th><th className="p-4">Customer</th><th className="p-4">Tour</th>
+                    <th className="p-4">Rating</th><th className="p-4">Comment</th><th className="p-4">Status</th><th className="p-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
@@ -580,12 +595,10 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- ANALYTICS TAB (ADMIN & MANAGER) --- */}
+          {/* --- ANALYTICS TAB --- */}
           {activeTab === 'analytics' && (userRole === 'admin' || userRole === 'manager') && (
             <div className="space-y-8">
               <h2 className="text-2xl font-bold text-safari-green">Business Overview</h2>
-              
-              {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
                   <p className="text-gray-500 text-sm font-medium uppercase">Total Bookings</p>
@@ -605,16 +618,14 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* Top Destinations & Quick Insights */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Top Destinations Chart */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm">
                   <h3 className="text-lg font-bold text-gray-800 mb-6">Top Destinations</h3>
                   {topDestinations.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">No booking data yet.</p>
                   ) : (
                     <div className="space-y-4">
-                      {topDestinations.map(([dest, count], index) => {
+                      {topDestinations.map(([dest, count]) => {
                         const percentage = totalBookings > 0 ? Math.round((count / totalBookings) * 100) : 0;
                         return (
                           <div key={dest}>
@@ -623,10 +634,7 @@ export default function Admin() {
                               <span className="text-gray-500">{count} bookings ({percentage}%)</span>
                             </div>
                             <div className="w-full bg-gray-100 rounded-full h-3">
-                              <div 
-                                className="bg-safari-green h-3 rounded-full transition-all duration-500" 
-                                style={{ width: `${percentage}%` }}
-                              ></div>
+                              <div className="bg-safari-green h-3 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
                             </div>
                           </div>
                         );
@@ -635,7 +643,6 @@ export default function Admin() {
                   )}
                 </div>
 
-                {/* Quick Actions / Insights */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm">
                   <h3 className="text-lg font-bold text-gray-800 mb-6">Quick Insights</h3>
                   <div className="space-y-4">
@@ -648,24 +655,18 @@ export default function Admin() {
                         </p>
                       </div>
                     </div>
-                    
                     <div className="flex items-start gap-4 p-4 bg-yellow-50 rounded-xl">
-                      <span className="text-2xl">⏳</span>
+                      <span className="text-2xl"></span>
                       <div>
                         <p className="font-bold text-gray-800">Action Required</p>
-                        <p className="text-sm text-gray-600">
-                          You have {pendingBookings} pending booking(s) waiting for confirmation.
-                        </p>
+                        <p className="text-sm text-gray-600">You have {pendingBookings} pending booking(s) waiting for confirmation.</p>
                       </div>
                     </div>
-
                     <div className="flex items-start gap-4 p-4 bg-red-50 rounded-xl">
                       <span className="text-2xl">🚫</span>
                       <div>
                         <p className="font-bold text-gray-800">Cancellations</p>
-                        <p className="text-sm text-gray-600">
-                          {cancelledBookings} booking(s) have been cancelled.
-                        </p>
+                        <p className="text-sm text-gray-600">{cancelledBookings} booking(s) have been cancelled.</p>
                       </div>
                     </div>
                   </div>
@@ -674,7 +675,7 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- TOURS TAB (ADMIN & MANAGER) --- */}
+          {/* --- TOURS TAB --- */}
           {activeTab === 'tours' && (userRole === 'admin' || userRole === 'manager') && (
             <div>
               <h2 className="text-xl font-bold text-safari-green mb-4">{editingTour ? 'Edit Tour' : 'Add New Tour'}</h2>
@@ -694,7 +695,6 @@ export default function Admin() {
                   <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} className="p-3 border rounded-lg w-full bg-white" />
                 </div>
                 <textarea name="description" value={newTour.description} onChange={handleTourChange} placeholder="Short Description" rows="2" className="p-3 border rounded-lg w-full"></textarea>
-                
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">What's Included (comma separated)</label>
@@ -713,37 +713,23 @@ export default function Admin() {
                   <label className="block text-xs font-bold text-gray-500 mb-1">Day-by-Day Itinerary (one day per line)</label>
                   <textarea name="itinerary" value={newTour.itinerary} onChange={handleTourChange} placeholder="Day 1: Arrival&#10;Day 2: Safari" rows="4" className="p-3 border rounded-lg w-full font-mono text-sm"></textarea>
                 </div>
-
-               <div className="flex flex-col gap-4 mt-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-bold text-gray-700">
-                    Halal Friendliness: <span className="text-safari-green text-lg">{newTour.halal_percentage}%</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    name="halal_percentage" 
-                    min="0" 
-                    max="100" 
-                    step="10"
-                    value={newTour.halal_percentage} 
-                    onChange={handleTourChange} 
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-safari-green"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>0% (Not Halal)</span>
-                    <span>50% (Partially Halal)</span>
-                    <span>100% (Fully Halal)</span>
+                <div className="flex flex-col gap-4 mt-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-gray-700">
+                      Halal Friendliness: <span className="text-safari-green text-lg">{newTour.halal_percentage}%</span>
+                    </label>
+                    <input type="range" name="halal_percentage" min="0" max="100" step="10" value={newTour.halal_percentage} onChange={handleTourChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-safari-green" />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>0% (Not Halal)</span><span>50% (Partially Halal)</span><span>100% (Fully Halal)</span>
+                    </div>
                   </div>
-                </div>
-                <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition self-end">
-                  {editingTour ? 'Update Tour' : 'Add Tour'}
-                </button>
+                  <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition self-end">
+                    {editingTour ? 'Update Tour' : 'Add Tour'}
+                  </button>
                 </div>
               </form>
-                {editingTour && (
-                  <button type="button" onClick={() => { setEditingTour(null); setImageFile(null); setNewTour(EMPTY_TOUR); }} className="text-red-500 text-sm hover:underline mt-2">
-                    Cancel Edit
-                  </button>
+              {editingTour && (
+                <button type="button" onClick={() => { setEditingTour(null); setImageFile(null); setNewTour(EMPTY_TOUR); }} className="text-red-500 text-sm hover:underline mt-2">Cancel Edit</button>
               )}
 
               <h3 className="text-lg font-bold text-gray-700 mb-4">All Tours</h3>
@@ -769,25 +755,90 @@ export default function Admin() {
             </div>
           )}
 
-          {/* --- TEAM TAB (ADMIN ONLY) --- */}
+          {/* --- NEW: ACTIVITY LOG TAB (ADMIN ONLY) --- */}
+          {activeTab === 'activity' && userRole === 'admin' && (
+            <div className="overflow-x-auto">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-safari-green">📋 Activity Log</h2>
+                  <p className="text-sm text-gray-500 mt-1">Track all staff actions for security and accountability</p>
+                </div>
+                <span className="text-xs text-gray-400">Showing last {activityLogs.length} activities</span>
+              </div>
+
+              {activityLogs.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500 text-lg">No activity recorded yet.</p>
+                  <p className="text-gray-400 text-sm mt-2">Actions will appear here as staff members use the dashboard.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
+                    <tr>
+                      <th className="p-4">Date & Time</th>
+                      <th className="p-4">Staff Member</th>
+                      <th className="p-4">Action</th>
+                      <th className="p-4">Details</th>
+                      <th className="p-4">Device/Browser</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm">
+                    {activityLogs.map((log) => {
+                      // Color-code actions
+                      const actionColor = 
+                        log.action.includes('Logged') ? 'bg-blue-100 text-blue-700' :
+                        log.action.includes('Created') || log.action.includes('Added') || log.action.includes('Approved') ? 'bg-green-100 text-green-700' :
+                        log.action.includes('Deleted') || log.action.includes('Removed') ? 'bg-red-100 text-red-700' :
+                        log.action.includes('Updated') || log.action.includes('Edited') ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700';
+
+                      return (
+                        <tr key={log.id} className="hover:bg-gray-50">
+                          <td className="p-4 text-gray-500 whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString()}
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-gray-800">{log.user_name || 'Unknown'}</div>
+                            <div className="text-gray-500 text-xs">{log.user_email}</div>
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${actionColor}`}>
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="p-4 text-gray-700 max-w-md">{log.details || '—'}</td>
+                          <td className="p-4 text-gray-400 text-xs max-w-xs truncate" title={log.user_agent}>
+                            {log.user_agent ? (
+                              log.user_agent.includes('Chrome') ? '🌐 Chrome' :
+                              log.user_agent.includes('Firefox') ? ' Firefox' :
+                              log.user_agent.includes('Safari') ? '🧭 Safari' :
+                              log.user_agent.includes('Mobile') ? '📱 Mobile' : '💻 Desktop'
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* --- TEAM TAB --- */}
           {activeTab === 'team' && userRole === 'admin' && (
             <div>
               <h2 className="text-xl font-bold text-safari-green mb-4">Manage Staff Access</h2>
               <p className="text-gray-600 mb-6 text-sm">
                 Enter their name and email below. This creates their login automatically and shows you a temporary password to share with them.
-                If the email already has an account, they are simply given dashboard access and keep their existing password.
               </p>
               
               <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 mb-8 bg-gray-50 p-6 rounded-lg">
                 <input type="text" value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Staff Member Name" required className="p-3 border rounded-lg flex-1" />
                 <input type="email" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} placeholder="Staff Email Address" required className="p-3 border rounded-lg flex-1" />
-                
-                {/* ADDED ROLE DROPDOWN */}
                 <select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="p-3 border rounded-lg md:w-48 bg-white">
                   <option value="manager">Manager (Tours, Bookings, Reviews)</option>
                   <option value="admin">Admin (Full Access)</option>
                 </select>
-
                 <button type="submit" className="bg-safari-green text-white px-6 py-3 rounded-lg font-bold hover:bg-safari-teal transition">Grant Access</button>
               </form>
 
@@ -827,7 +878,6 @@ export default function Admin() {
               <h2 className="text-xl font-bold text-safari-green">Edit Booking: {editingBooking.first_name} {editingBooking.last_name}</h2>
               <button onClick={() => setEditingBooking(null)} className="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
             </div>
-            
             <form onSubmit={saveBookingEdits} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Booking Status</label>
@@ -838,7 +888,6 @@ export default function Admin() {
                   <option value="completed">Completed</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Payment Status</label>
                 <select name="payment_status" value={bookingForm.payment_status} onChange={handleBookingFormChange} className="w-full p-2 border rounded">
@@ -847,12 +896,10 @@ export default function Admin() {
                   <option value="fully_paid">Fully Paid</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Internal Notes (staff only, never shown to customers)</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Internal Notes (staff only)</label>
                 <textarea name="notes" value={bookingForm.notes} onChange={handleBookingFormChange} rows="3" className="w-full p-2 border rounded" placeholder="e.g., Customer prefers window seat, allergic to nuts..."></textarea>
               </div>
-
               <button type="submit" className="w-full bg-safari-green text-white py-2 rounded-lg font-bold hover:bg-safari-teal">Save Changes</button>
             </form>
           </div>
