@@ -138,17 +138,16 @@ export default function Contact() {
             </form>
           </div>
 
-          {/* Google Map */}
+          {/* Google Map - UPDATED WITH CORRECT LOCATION */}
           <div className="relative min-h-[400px] bg-gray-200">
             <iframe
-              // 👇 PASTE YOUR NEW GOOGLE MAPS EMBED URL INSIDE THE QUOTES BELOW 👇
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126935.9133060335!2d39.14826912092945!3d-6.164587973501023!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x63593b62a2002a63%3A0x2554c5c0f25fd00b!2sYalamlam%20Travel%20%26%20Tours%20Limited!5e0!3m2!1sen!2stz!4v1793005297095!5m2!1sen!2stz"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.7460695212044!2d39.20145907349546!3d-6.164751293822489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x185cd1f4afd89d85%3A0x542cdb05828db6b8!2sZanzibar%20Bus%20Terminal%20at%20Kijangwani!5e0!3m2!1sen!2stz!4v1793012152213!5m2!1sen!2stz"
               width="100%"
               height="100%"
               style={{ border: 0 }}
               allowFullScreen=""
               loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
+              referrerPolicy="strict-origin-when-cross-origin"
               title="Yalamlam Office Location"
             ></iframe>
           </div>
