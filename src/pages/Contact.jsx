@@ -142,11 +142,11 @@ export default function Contact() {
           {/* Google Map */}
           <div className="relative min-h-[400px] bg-gray-200">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3978.583742837237!2d39.1857!3d-6.1622!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNsKwMDknNDMuOSJTIDM5wrAxMScwOC41IkU!5e0!3m2!1sen!2stz!4v1600000000000!5m2!1sen!2stz"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126935.9133060335!2d39.14826912092945!3d-6.164587973501023!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x63593b62a2002a63%3A0x2554c5c0f25fd00b!2sYalamlam%20Travel%20%26%20Tours%20Limited!5e0!3m2!1sen!2stz!4v1793005297095!5m2!1sen!2stz"
               width="100%"
-              height="100%"
-              style={{ border: 0, position: 'absolute', top: 0, left: 0 }}
-              allowFullScreen=""
+              height="450"
+              style="border:0;"
+              allowfullscreen=""
               loading="lazy"
               title="Yalamlam Office Location"
             ></iframe>

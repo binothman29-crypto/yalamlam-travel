@@ -138,6 +138,41 @@ export default function Admin() {
     navigate('/login');
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Ref', 'Date', 'First Name', 'Last Name', 'Email', 'Phone', 'Tour', 'Start Date', 'End Date', 'Status', 'Payment', 'Guests', 'Notes'];
+    
+    const rows = bookings.map(b => [
+      bookingRef(b.id),
+      new Date(b.created_at).toLocaleDateString(),
+      `"${b.first_name}"`,
+      `"${b.last_name}"`,
+      b.email,
+      b.phone,
+      `"${b.destination}"`,
+      b.start_date,
+      b.end_date,
+      b.status,
+      b.payment_status || 'unpaid',
+      b.guests || 1,
+      `"${(b.notes || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `yalamlam_bookings_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const sendUpcomingReminders = async () => {
     if (!window.confirm("Send reminder emails to all customers with confirmed tours in the next 48 hours?")) return;
     try {
@@ -558,7 +593,11 @@ export default function Admin() {
               <div className="overflow-x-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-safari-green">All Bookings</h2>
+                  <div className="flex gap-2">
+                    {/* Export CSV Button */}
+                    <button onClick={handleExportCSV} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 transition">📥 Export CSV</button>
                   <button onClick={sendUpcomingReminders} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition">🔔 Send 48h Reminders</button>
+                  </div>
                 </div>
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
