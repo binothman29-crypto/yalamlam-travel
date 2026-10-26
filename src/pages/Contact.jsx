@@ -6,12 +6,11 @@ export default function Contact() {
   const { t } = useLanguage();
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,7 +62,7 @@ export default function Contact() {
       <section className="py-12 px-4 max-w-7xl mx-auto -mt-10">
         <div className="grid md:grid-cols-3 gap-6">
 
-          {/* 1. Phone Numbers Card (Custom Div) */}
+          {/* 1. Phone Numbers Card */}
           <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 text-center group hover:-translate-y-2 border border-gray-100">
             <div className="text-4xl mb-4">📞</div>
             <h3 className="text-xl font-heading font-bold text-safari-green mb-2">{t('callWhatsappUs')}</h3>
@@ -77,7 +76,7 @@ export default function Contact() {
             <p className="text-gray-500 text-sm mt-3">{t('availableHours')}</p>
           </div>
 
-          {/* 2. Email Card (Using InfoCard Component) */}
+          {/* 2. Email Card */}
           <InfoCard
             icon="📧"
             title={t('emailUsTitle')}
@@ -85,7 +84,7 @@ export default function Contact() {
             subInfo={t('replyWithin24')}
           />
 
-          {/* 3. Location Card (Using InfoCard Component) */}
+          {/* 3. Location Card */}
           <InfoCard
             icon="📍"
             title={t('visitOurOffice')}
@@ -134,7 +133,7 @@ export default function Contact() {
                 disabled={isSubmitting}
                 className="w-full bg-safari-green text-white py-3 rounded-full font-bold text-lg hover:bg-safari-teal transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
-              {isSubmitting ? t('sendingEllipsis') : t('sendMessage')}
+                {isSubmitting ? t('sendingEllipsis') : t('sendMessage')}
               </button>
             </form>
           </div>
@@ -142,12 +141,14 @@ export default function Contact() {
           {/* Google Map */}
           <div className="relative min-h-[400px] bg-gray-200">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126935.9133060335!2d39.14826912092945!3d-6.164587973501023!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x63593b62a2002a63%3A0x2554c5c0f25fd00b!2sYalamlam%20Travel%20%26%20Tours%20Limited!5e0!3m2!1sen!2stz!4v1793005297095!5m2!1sen!2stz"
+              // 👇 PASTE YOUR NEW GOOGLE MAPS EMBED URL INSIDE THE QUOTES BELOW 👇
+              src="https://www.google.com/maps/embed?pb=YOUR_NEW_CORRECT_MAP_LINK_HERE"
               width="100%"
-              height="450"
-              style="border:0;"
-              allowfullscreen=""
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen=""
               loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
               title="Yalamlam Office Location"
             ></iframe>
           </div>
