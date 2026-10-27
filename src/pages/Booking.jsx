@@ -1,24 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
 
-// Replace with the WhatsApp number that receives booking requests (no +, no spaces).
 const WHATSAPP_NUMBER = '255778265758';
-
-// Today in the visitor's own timezone as YYYY-MM-DD (for the date inputs' min).
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 
 export default function Booking() {
   const { t } = useLanguage();
-  // t() returns the key itself when a translation is missing, so new strings
-  // fall back to English until they are added to LanguageContext.
   const tr = (key, fallback) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
   };
 
-  // "Book this tour" on a tour page links here as /booking?tour=<title>&price=<n>
   const [searchParams] = useSearchParams();
   const tourTitle = (searchParams.get('tour') || '').trim();
   const tourPrice = (searchParams.get('price') || '').trim();
@@ -27,25 +21,40 @@ export default function Booking() {
   const [stepError, setStepError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Set after a successful save: { whatsappUrl, loggedIn }
   const [completed, setCompleted] = useState(null);
 
-  // This object holds all the data the user types in
+  // NEW: State for fetching tours from database
+  const [tours, setTours] = useState([]);
+  const [loadingTours, setLoadingTours] = useState(true);
+
+  // NEW: Fetch tours on component mount
+  useEffect(() => {
+    const fetchTours = async () => {
+      const { data, error } = await supabase
+        .from('tours')
+        .select('title')
+        .order('title', { ascending: true });
+      
+      if (!error && data) {
+        setTours(data);
+      }
+      setLoadingTours(false);
+    };
+    fetchTours();
+  }, []);
+
   const [formData, setFormData] = useState({
-    destination: tourTitle || 'zanzibar',
+    destination: tourTitle || '', // Default to empty string to force selection, or the tour from URL
     startDate: '',
     endDate: '',
     guests: 2,
-    // Muslim-friendly specific fields
     halalMeals: true,
     prayerFacilities: true,
     privateVehicle: true,
     femaleGuide: false,
     modestActivities: true,
-    // Accommodation & Extras
     accommodation: 'luxury-lodge',
     activities: [],
-    // Contact Info
     firstName: '',
     lastName: '',
     email: '',
@@ -53,13 +62,11 @@ export default function Booking() {
     specialRequests: ''
   });
 
-  // Helper to update text/number/select inputs
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  // Helper specifically for the "Activities" checkboxes (arrays)
   const handleActivityChange = (e) => {
     const { value, checked } = e.target;
     setFormData(prev => ({
@@ -68,10 +75,11 @@ export default function Booking() {
     }));
   };
 
-  // The "Next" buttons are not form submits, so the browser never checks the
-  // required fields of earlier steps. Check them here before moving on.
   const validateStep = (currentStep) => {
     if (currentStep === 1) {
+      if (!formData.destination) {
+        return tr('destinationRequired', 'Please select a tour or destination.');
+      }
       if (!formData.startDate || !formData.endDate) {
         return tr('datesRequired', 'Please choose your start and end dates.');
       }
@@ -97,13 +105,12 @@ export default function Booking() {
     setStepError('');
     setStep(prev => prev + 1);
   };
+  
   const prevStep = () => {
     setStepError('');
     setStep(prev => prev - 1);
   };
 
-  // Activities are stored in the database in English regardless of UI language,
-  // so the "value" here stays fixed while only the visible label is translated.
   const activityOptions = [
     { value: 'Wildlife Safari', label: t('actWildlifeSafari') },
     { value: 'Snorkelling', label: t('actSnorkelling') },
@@ -117,7 +124,6 @@ export default function Booking() {
     e.preventDefault();
     setSubmitError('');
 
-    // Re-check step 1 in case someone jumped ahead.
     const problem = validateStep(1);
     if (problem) {
       setStep(1);
@@ -131,14 +137,11 @@ export default function Booking() {
       const { data: { user } } = await supabase.auth.getUser();
       const guests = Math.max(1, parseInt(formData.guests, 10) || 1);
 
-      // The bookings table has no "tour" column, so the chosen tour and its
-      // quoted price travel with the special requests.
       const tourNote = tourTitle
         ? `[Selected tour: ${tourTitle}${tourPrice ? ` - $${tourPrice} per person` : ''}]`
         : '';
       const specialRequests = [tourNote, formData.specialRequests.trim()].filter(Boolean).join('\n');
 
-      // 1. SAVE TO DATABASE
       const { error } = await supabase.from('bookings').insert([
         {
           first_name: formData.firstName.trim(),
@@ -168,11 +171,10 @@ export default function Booking() {
         return;
       }
 
-      // 2. BUILD THE WHATSAPP MESSAGE
       const message = `
 🌍 *NEW YALAMLAM TRAVEL BOOKING REQUEST*
 ---------------------------------
-📍 *Destination:* ${formData.destination}${tourPrice ? ` ($${tourPrice} per person)` : ''}
+📍 *Destination/Tour:* ${formData.destination}${tourPrice ? ` ($${tourPrice} per person)` : ''}
 📅 *Dates:* ${formData.startDate} to ${formData.endDate}
 👥 *Guests:* ${guests}
 
@@ -196,8 +198,6 @@ export default function Booking() {
 ${formData.specialRequests.trim() || 'None'}
       `.trim();
 
-      // Browsers (iOS Safari especially) block window.open() once we have
-      // awaited the database, so show a button the visitor taps instead.
       setCompleted({
         whatsappUrl: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
         loggedIn: Boolean(user),
@@ -210,7 +210,6 @@ ${formData.specialRequests.trim() || 'None'}
     }
   };
 
-  // Progress bar calculation
   const progress = (step / 4) * 100;
   const today = todayISO();
 
@@ -254,7 +253,6 @@ ${formData.specialRequests.trim() || 'None'}
           <p className="text-gray-600">{t('planSafariDesc')}</p>
         </div>
 
-        {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between mb-2 text-sm font-medium text-safari-green">
             <span>{t('step')} {step} {t('of')} 4</span>
@@ -281,14 +279,37 @@ ${formData.specialRequests.trim() || 'None'}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('whereToGo')}</label>
-                <select name="destination" value={formData.destination} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent">
-                  {tourTitle && <option value={tourTitle}>{tourTitle}</option>}
-                  <option value="zanzibar">{t('destZanzibar')}</option>
-                  <option value="serengeti">{t('destSerengeti')}</option>
-                  <option value="kilimanjaro">{t('destKilimanjaro')}</option>
-                  <option value="custom">{t('destCustom')}</option>
+                <select 
+                  name="destination" 
+                  value={formData.destination} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent"
+                >
+                  {loadingTours ? (
+                    <option value="">{t('loadingTours', 'Loading tours...')}</option>
+                  ) : (
+                    <>
+                      <option value="">{t('selectDestination', 'Select a tour or destination')}</option>
+                      
+                      {/* Fallback: If the tour from URL isn't in the DB list for some reason, still show it */}
+                      {tourTitle && !tours.some(t => t.title === tourTitle) && (
+                        <option value={tourTitle}>{tourTitle}</option>
+                      )}
+                      
+                      {/* Map through all tours from the database */}
+                      {tours.map(tour => (
+                        <option key={tour.title} value={tour.title}>
+                          {tour.title}
+                        </option>
+                      ))}
+                      
+                      <option value="custom">{t('destCustom', 'Custom Multi-Destination Itinerary')}</option>
+                    </>
+                  )}
                 </select>
               </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{t('startDate')}</label>
@@ -301,7 +322,7 @@ ${formData.specialRequests.trim() || 'None'}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('numberOfGuests')}</label>
-                <input type="number" name="guests" min="1" max="50" value={formData.guests} onChange={handleChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                <input type="number" name="guests" min="1" max="50" value={formData.guests} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
               </div>
             </div>
           )}
@@ -371,7 +392,6 @@ ${formData.specialRequests.trim() || 'None'}
             </div>
           )}
 
-          {/* NAVIGATION BUTTONS */}
           <div className="flex justify-between mt-8 pt-6 border-t">
             {step > 1 ? (
               <button type="button" onClick={prevStep} className="px-6 py-3 border-2 border-safari-green text-safari-green rounded-full font-semibold hover:bg-safari-sand transition">
@@ -398,8 +418,6 @@ ${formData.specialRequests.trim() || 'None'}
     </div>
   );
 }
-
-// --- REUSABLE FORM COMPONENTS ---
 
 function CheckboxItem({ label, name, checked, onChange }) {
   return (
