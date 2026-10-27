@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // Added useEffect
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
@@ -23,28 +23,14 @@ export default function Booking() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(null);
 
-  // NEW: State for fetching tours from database
-  const [tours, setTours] = useState([]);
-  const [loadingTours, setLoadingTours] = useState(true);
+  // DYNAMIC ITINERARY BUILDER STATE
+  const initialItinerary = tourTitle 
+    ? [{ location: 'Custom Tour', days: 1, notes: `Specific Request: ${tourTitle} (Quoted: $${tourPrice})` }]
+    : [{ location: 'Zanzibar', days: 3, notes: '' }];
 
-  // NEW: Fetch tours on component mount
-  useEffect(() => {
-    const fetchTours = async () => {
-      const { data, error } = await supabase
-        .from('tours')
-        .select('title')
-        .order('title', { ascending: true });
-      
-      if (!error && data) {
-        setTours(data);
-      }
-      setLoadingTours(false);
-    };
-    fetchTours();
-  }, []);
+  const [itinerary, setItinerary] = useState(initialItinerary);
 
   const [formData, setFormData] = useState({
-    destination: tourTitle || '', // Default to empty string to force selection, or the tour from URL
     startDate: '',
     endDate: '',
     guests: 2,
@@ -62,6 +48,23 @@ export default function Booking() {
     specialRequests: ''
   });
 
+  // --- ITINERARY BUILDER FUNCTIONS ---
+  const addDestination = () => {
+    setItinerary([...itinerary, { location: 'Zanzibar', days: 2, notes: '' }]);
+  };
+
+  const removeDestination = (index) => {
+    if (itinerary.length > 1) {
+      setItinerary(itinerary.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateDestination = (index, field, value) => {
+    const newItinerary = [...itinerary];
+    newItinerary[index][field] = value;
+    setItinerary(newItinerary);
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
@@ -77,11 +80,8 @@ export default function Booking() {
 
   const validateStep = (currentStep) => {
     if (currentStep === 1) {
-      if (!formData.destination) {
-        return tr('destinationRequired', 'Please select a tour or destination.');
-      }
       if (!formData.startDate || !formData.endDate) {
-        return tr('datesRequired', 'Please choose your start and end dates.');
+        return tr('datesRequired', 'Please choose your overall start and end dates.');
       }
       if (formData.startDate < todayISO()) {
         return tr('startInPast', 'The start date cannot be in the past.');
@@ -91,6 +91,11 @@ export default function Booking() {
       }
       if (!(parseInt(formData.guests, 10) >= 1)) {
         return tr('guestsMin', 'Please enter at least 1 guest.');
+      }
+      // Validate itinerary
+      for (let i = 0; i < itinerary.length; i++) {
+        if (!itinerary[i].location) return `Please select a location for Destination ${i + 1}.`;
+        if (parseInt(itinerary[i].days, 10) < 1) return `Please enter at least 1 day for Destination ${i + 1}.`;
       }
     }
     return '';
@@ -137,10 +142,12 @@ export default function Booking() {
       const { data: { user } } = await supabase.auth.getUser();
       const guests = Math.max(1, parseInt(formData.guests, 10) || 1);
 
-      const tourNote = tourTitle
-        ? `[Selected tour: ${tourTitle}${tourPrice ? ` - $${tourPrice} per person` : ''}]`
-        : '';
-      const specialRequests = [tourNote, formData.specialRequests.trim()].filter(Boolean).join('\n');
+      // Format the custom itinerary into a clean string
+      const itinerarySummary = itinerary.map((leg, i) => 
+        `📍 Leg ${i + 1}: ${leg.location} (${leg.days} Days) - ${leg.notes || 'Standard exploration'}`
+      ).join('\n');
+
+      const specialRequests = [itinerarySummary, formData.specialRequests.trim()].filter(Boolean).join('\n\n');
 
       const { error } = await supabase.from('bookings').insert([
         {
@@ -148,7 +155,7 @@ export default function Booking() {
           last_name: formData.lastName.trim(),
           email: formData.email.trim(),
           phone: formData.phone.trim(),
-          destination: formData.destination,
+          destination: 'Custom Multi-Destination', // Fixed value for custom builder
           start_date: formData.startDate,
           end_date: formData.endDate,
           guests,
@@ -172,11 +179,13 @@ export default function Booking() {
       }
 
       const message = `
-🌍 *NEW YALAMLAM TRAVEL BOOKING REQUEST*
+🌍 *NEW YALAMLAM TRAVEL CUSTOM ITINERARY REQUEST*
 ---------------------------------
-📍 *Destination/Tour:* ${formData.destination}${tourPrice ? ` ($${tourPrice} per person)` : ''}
-📅 *Dates:* ${formData.startDate} to ${formData.endDate}
-👥 *Guests:* ${guests}
+📅 *Overall Dates:* ${formData.startDate} to ${formData.endDate}
+👥 *Total Guests:* ${guests}
+
+🗺️ *CUSTOM ITINERARY:*
+${itinerarySummary}
 
 🕌 *FAITH & COMFORT:*
 - Halal Meals: ${formData.halalMeals ? '✅ Yes' : '❌ No'}
@@ -194,7 +203,7 @@ export default function Booking() {
 - Email: ${formData.email}
 - Phone/WhatsApp: ${formData.phone}
 
-📝 *SPECIAL REQUESTS:*
+📝 *ADDITIONAL NOTES:*
 ${formData.specialRequests.trim() || 'None'}
       `.trim();
 
@@ -219,10 +228,10 @@ ${formData.specialRequests.trim() || 'None'}
         <div className="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-lg text-center space-y-5">
           <div className="text-5xl">✅</div>
           <h1 className="text-2xl md:text-3xl font-heading font-bold text-safari-green">
-            {tr('bookingSavedTitle', 'JazakAllah Khair! Your request is saved.')}
+            {tr('bookingSavedTitle', 'JazakAllah Khair! Your custom request is saved.')}
           </h1>
           <p className="text-gray-600">
-            {tr('bookingSavedBody', 'One last step: send your details to us on WhatsApp so we can finalize your booking.')}
+            {tr('bookingSavedBody', 'One last step: send your custom itinerary to us on WhatsApp so our experts can build your perfect quote.')}
           </p>
           <a
             href={completed.whatsappUrl}
@@ -230,7 +239,7 @@ ${formData.specialRequests.trim() || 'None'}
             rel="noreferrer"
             className="inline-block bg-green-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-green-700 transition shadow-md"
           >
-            {tr('continueOnWhatsApp', 'Continue on WhatsApp')}
+            {tr('continueOnWhatsApp', 'Send Itinerary on WhatsApp')}
           </a>
           <div className="pt-2">
             <Link
@@ -265,64 +274,94 @@ ${formData.specialRequests.trim() || 'None'}
 
         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg">
 
-          {/* STEP 1: TRIP DETAILS */}
+          {/* STEP 1: CUSTOM ITINERARY BUILDER */}
           {step === 1 && (
             <div className="space-y-6 animate-fade-in">
-              <h2 className="text-2xl font-heading font-bold text-safari-green border-b pb-3">{t('step1Title')}</h2>
+              <h2 className="text-2xl font-heading font-bold text-safari-green border-b pb-3">Build Your Custom Itinerary</h2>
+              <p className="text-sm text-gray-500">Tell us the overall dates and group size, then add each destination you want to visit.</p>
 
-              {tourTitle && (
-                <div className="bg-safari-sand border border-safari-gold rounded-xl p-4 text-sm text-safari-green">
-                  <span className="font-bold">{tr('selectedTour', 'Selected tour')}:</span> {tourTitle}
-                  {tourPrice && <span> &middot; ${tourPrice} {t('perPerson')}</span>}
+              {/* Overall Trip Details */}
+              <div className="bg-safari-sand/50 p-4 rounded-xl border border-safari-gold/30 space-y-4">
+                <h3 className="font-bold text-safari-green">Overall Trip Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Start Date</label>
+                    <input type="date" name="startDate" min={today} value={formData.startDate} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">End Date</label>
+                    <input type="date" name="endDate" min={formData.startDate || today} value={formData.endDate} onChange={handleChange} required className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                  </div>
                 </div>
-              )}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Total Number of Guests</label>
+                  <input type="number" name="guests" min="1" max="50" value={formData.guests} onChange={handleChange} required className="w-full md:w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                </div>
+              </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('whereToGo')}</label>
-                <select 
-                  name="destination" 
-                  value={formData.destination} 
-                  onChange={handleChange} 
-                  required 
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold focus:border-transparent"
+              {/* Dynamic Itinerary Legs */}
+              <div className="space-y-4">
+                <h3 className="font-bold text-safari-green">Trip Destinations</h3>
+                {itinerary.map((leg, index) => (
+                  <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 relative">
+                    {itinerary.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeDestination(index)} 
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm font-bold"
+                      >
+                        ✕ Remove
+                      </button>
+                    )}
+                    <p className="text-xs font-bold text-gray-500 uppercase mb-3">Destination {index + 1}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="md:col-span-1">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Location</label>
+                        <select 
+                          value={leg.location} 
+                          onChange={(e) => updateDestination(index, 'location', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold bg-white"
+                        >
+                          <option value="Zanzibar">Zanzibar</option>
+                          <option value="Serengeti">Serengeti National Park</option>
+                          <option value="Ngorongoro">Ngorongoro Crater</option>
+                          <option value="Kilimanjaro">Mount Kilimanjaro</option>
+                          <option value="Tarangire">Tarangire National Park</option>
+                          <option value="Custom">Other / Custom</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-1">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Number of Days</label>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="30" 
+                          value={leg.days} 
+                          onChange={(e) => updateDestination(index, 'days', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" 
+                        />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Specific Tours or Notes for this leg (Optional)</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., Safari Blue tour, Private beachfront villa, Spice farm visit..." 
+                          value={leg.notes} 
+                          onChange={(e) => updateDestination(index, 'notes', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <button 
+                  type="button" 
+                  onClick={addDestination}
+                  className="w-full py-3 border-2 border-dashed border-safari-green text-safari-green rounded-xl font-bold hover:bg-safari-green hover:text-white transition flex items-center justify-center gap-2"
                 >
-                  {loadingTours ? (
-                    <option value="">{t('loadingTours', 'Loading tours...')}</option>
-                  ) : (
-                    <>
-                      <option value="">{t('selectDestination', 'Select a tour or destination')}</option>
-                      
-                      {/* Fallback: If the tour from URL isn't in the DB list for some reason, still show it */}
-                      {tourTitle && !tours.some(t => t.title === tourTitle) && (
-                        <option value={tourTitle}>{tourTitle}</option>
-                      )}
-                      
-                      {/* Map through all tours from the database */}
-                      {tours.map(tour => (
-                        <option key={tour.title} value={tour.title}>
-                          {tour.title}
-                        </option>
-                      ))}
-                      
-                      <option value="custom">{t('destCustom', 'Custom Multi-Destination Itinerary')}</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('startDate')}</label>
-                  <input type="date" name="startDate" min={today} value={formData.startDate} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('endDate')}</label>
-                  <input type="date" name="endDate" min={formData.startDate || today} value={formData.endDate} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">{t('numberOfGuests')}</label>
-                <input type="number" name="guests" min="1" max="50" value={formData.guests} onChange={handleChange} required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" />
+                  <span>+</span> Add Another Destination
+                </button>
               </div>
             </div>
           )}
@@ -381,7 +420,7 @@ ${formData.specialRequests.trim() || 'None'}
               <InputField label={t('whatsappNumberLabel')} name="phone" type="tel" value={formData.phone} onChange={handleChange} required />
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">{t('specialRequests')}</label>
-                <textarea name="specialRequests" rows="4" maxLength={2000} value={formData.specialRequests} onChange={handleChange} placeholder={t('specialRequestsPlaceholder')} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold"></textarea>
+                <textarea name="specialRequests" rows="4" maxLength={2000} value={formData.specialRequests} onChange={handleChange} placeholder="Any dietary restrictions, flight details, or special celebrations?" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold"></textarea>
               </div>
             </div>
           )}
