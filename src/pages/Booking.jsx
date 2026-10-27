@@ -6,6 +6,16 @@ import { useLanguage } from '../context/LanguageContext';
 const WHATSAPP_NUMBER = '255778265758';
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 
+// --- SMART TOUR LIST ---
+// This maps your predefined destinations to their specific tours.
+const destinationTours = {
+  'Zanzibar': ['Safari Blue Tour', 'Jozani Forest & Red Colobus Monkey', 'Stone Town Heritage Walk', 'Spice Farm & Halal Local Lunch', 'Private Halal Honeymoon Package', 'Nakupenda Sandbank Picnic', 'Dolphin Tour & Snorkeling'],
+  'Serengeti National Park': ['3-Day Serengeti Safari', '4-Day Serengeti & Ngorongoro', 'Great Migration Safari', 'Luxury Flying Safari'],
+  'Ngorongoro Crater': ['Ngorongoro Crater Day Trip', '2-Day Ngorongoro & Lake Manyara', 'Camping in the Crater'],
+  'Mount Kilimanjaro': ['7-Day Machame Route (Whiskey)', '6-Day Marangu Route (Coca-Cola)', '8-Day Lemosho Route (Scenic)', '5-Day Rongai Route'],
+  'Tarangire National Park': ['Tarangire Day Safari', 'Tarangire & Lake Manyara Combo', 'Walking Safari Experience']
+};
+
 export default function Booking() {
   const { t } = useLanguage();
   const tr = (key, fallback) => {
@@ -24,9 +34,10 @@ export default function Booking() {
   const [completed, setCompleted] = useState(null);
 
   // DYNAMIC ITINERARY BUILDER STATE
+  // Added 'selectedTour' to the structure
   const initialItinerary = tourTitle 
-    ? [{ location: 'Custom Tour', days: 1, notes: `Specific Request: ${tourTitle} (Quoted: $${tourPrice})` }]
-    : [{ location: 'Zanzibar', days: 3, notes: '' }];
+    ? [{ location: 'Zanzibar', days: 1, notes: `Specific Request: ${tourTitle} (Quoted: $${tourPrice})`, selectedTour: tourTitle }]
+    : [{ location: 'Zanzibar', days: 3, notes: '', selectedTour: '' }];
 
   const [itinerary, setItinerary] = useState(initialItinerary);
 
@@ -50,7 +61,7 @@ export default function Booking() {
 
   // --- ITINERARY BUILDER FUNCTIONS ---
   const addDestination = () => {
-    setItinerary([...itinerary, { location: 'Zanzibar', days: 2, notes: '' }]);
+    setItinerary([...itinerary, { location: 'Zanzibar', days: 2, notes: '', selectedTour: '' }]);
   };
 
   const removeDestination = (index) => {
@@ -62,6 +73,12 @@ export default function Booking() {
   const updateDestination = (index, field, value) => {
     const newItinerary = [...itinerary];
     newItinerary[index][field] = value;
+    
+    // If location changes, reset the selected tour to avoid mismatch
+    if (field === 'location') {
+      newItinerary[index].selectedTour = '';
+    }
+    
     setItinerary(newItinerary);
   };
 
@@ -92,7 +109,6 @@ export default function Booking() {
       if (!(parseInt(formData.guests, 10) >= 1)) {
         return tr('guestsMin', 'Please enter at least 1 guest.');
       }
-      // Validate itinerary
       for (let i = 0; i < itinerary.length; i++) {
         if (!itinerary[i].location) return `Please select a location for Destination ${i + 1}.`;
         if (parseInt(itinerary[i].days, 10) < 1) return `Please enter at least 1 day for Destination ${i + 1}.`;
@@ -143,9 +159,11 @@ export default function Booking() {
       const guests = Math.max(1, parseInt(formData.guests, 10) || 1);
 
       // Format the custom itinerary into a clean string
-      const itinerarySummary = itinerary.map((leg, i) => 
-        `📍 Leg ${i + 1}: ${leg.location} (${leg.days} Days) - ${leg.notes || 'Standard exploration'}`
-      ).join('\n');
+      const itinerarySummary = itinerary.map((leg, i) => {
+        const tourInfo = leg.selectedTour ? ` [Tour: ${leg.selectedTour}]` : '';
+        const notesInfo = leg.notes ? ` - ${leg.notes}` : '';
+        return ` Leg ${i + 1}: ${leg.location} (${leg.days} Days)${tourInfo}${notesInfo}`;
+      }).join('\n');
 
       const specialRequests = [itinerarySummary, formData.specialRequests.trim()].filter(Boolean).join('\n\n');
 
@@ -155,7 +173,7 @@ export default function Booking() {
           last_name: formData.lastName.trim(),
           email: formData.email.trim(),
           phone: formData.phone.trim(),
-          destination: 'Custom Multi-Destination', // Fixed value for custom builder
+          destination: 'Custom Multi-Destination',
           start_date: formData.startDate,
           end_date: formData.endDate,
           guests,
@@ -182,9 +200,9 @@ export default function Booking() {
 🌍 *NEW YALAMLAM TRAVEL CUSTOM ITINERARY REQUEST*
 ---------------------------------
 📅 *Overall Dates:* ${formData.startDate} to ${formData.endDate}
-👥 *Total Guests:* ${guests}
+ *Total Guests:* ${guests}
 
-🗺️ *CUSTOM ITINERARY:*
+️ *CUSTOM ITINERARY:*
 ${itinerarySummary}
 
 🕌 *FAITH & COMFORT:*
@@ -192,7 +210,7 @@ ${itinerarySummary}
 - Prayer Facilities: ${formData.prayerFacilities ? '✅ Yes' : '❌ No'}
 - Private Vehicle: ${formData.privateVehicle ? '✅ Yes' : '❌ No'}
 - Female Guide: ${formData.femaleGuide ? '✅ Yes' : '❌ No'}
-- Modest Activities: ${formData.modestActivities ? '✅ Yes' : '❌ No'}
+- Modest Activities: ${formData.modestActivities ? '✅ Yes' : ' No'}
 
 🏨 *STAY & PLAY:*
 - Accommodation: ${formData.accommodation}
@@ -314,7 +332,9 @@ ${formData.specialRequests.trim() || 'None'}
                       </button>
                     )}
                     <p className="text-xs font-bold text-gray-500 uppercase mb-3">Destination {index + 1}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      
+                      {/* Location Select */}
                       <div className="md:col-span-1">
                         <label className="block text-xs font-semibold text-gray-700 mb-1">Location</label>
                         <select 
@@ -323,13 +343,15 @@ ${formData.specialRequests.trim() || 'None'}
                           className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold bg-white"
                         >
                           <option value="Zanzibar">Zanzibar</option>
-                          <option value="Serengeti">Serengeti National Park</option>
-                          <option value="Ngorongoro">Ngorongoro Crater</option>
-                          <option value="Kilimanjaro">Mount Kilimanjaro</option>
-                          <option value="Tarangire">Tarangire National Park</option>
+                          <option value="Serengeti National Park">Serengeti National Park</option>
+                          <option value="Ngorongoro Crater">Ngorongoro Crater</option>
+                          <option value="Mount Kilimanjaro">Mount Kilimanjaro</option>
+                          <option value="Tarangire National Park">Tarangire National Park</option>
                           <option value="Custom">Other / Custom</option>
                         </select>
                       </div>
+
+                      {/* Days Input */}
                       <div className="md:col-span-1">
                         <label className="block text-xs font-semibold text-gray-700 mb-1">Number of Days</label>
                         <input 
@@ -341,11 +363,32 @@ ${formData.specialRequests.trim() || 'None'}
                           className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" 
                         />
                       </div>
-                      <div className="md:col-span-3">
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">Specific Tours or Notes for this leg (Optional)</label>
+
+                      {/* SMART TOUR DROPDOWN (Only shows for predefined locations) */}
+                      {destinationTours[leg.location] && (
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-safari-green mb-1">Select Specific Tour (Optional)</label>
+                          <select 
+                            value={leg.selectedTour || ''} 
+                            onChange={(e) => updateDestination(index, 'selectedTour', e.target.value)}
+                            className="w-full p-2 border border-safari-green/30 bg-white rounded-lg focus:ring-2 focus:ring-safari-gold"
+                          >
+                            <option value="">-- General Exploration / Not Sure Yet --</option>
+                            {destinationTours[leg.location].map(tour => (
+                              <option key={tour} value={tour}>{tour}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Custom Notes Input (Always visible, but emphasized for Custom location) */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          {leg.location === 'Custom' ? 'Describe Your Custom Plans' : 'Specific Notes for this leg (Optional)'}
+                        </label>
                         <input 
                           type="text" 
-                          placeholder="e.g., Safari Blue tour, Private beachfront villa, Spice farm visit..." 
+                          placeholder={leg.location === 'Custom' ? "e.g., I want to visit Pemba Island and do a cooking class..." : "e.g., Private beachfront villa, Spice farm visit..."} 
                           value={leg.notes} 
                           onChange={(e) => updateDestination(index, 'notes', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-safari-gold" 
