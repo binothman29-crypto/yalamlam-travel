@@ -12,7 +12,7 @@ const destinationTours = {
   'Zanzibar': ['Safari Blue Tour', 'Jozani Forest & Red Colobus Monkey', 'Stone Town Heritage Walk', 'Spice Farm & Halal Local Lunch', 'Private Halal Honeymoon Package', 'Nakupenda Sandbank Picnic', 'Dolphin Tour & Snorkeling'],
   'Serengeti National Park': ['3-Day Serengeti Safari', '4-Day Serengeti & Ngorongoro', 'Great Migration Safari', 'Luxury Flying Safari'],
   'Ngorongoro Crater': ['Ngorongoro Crater Day Trip', '2-Day Ngorongoro & Lake Manyara', 'Camping in the Crater'],
-  'Mount Kilimanjaro': ['7-Day Machame Route (Whiskey)', '6-Day Marangu Route (Coca-Cola)', '8-Day Lemosho Route (Scenic)', '5-Day Rongai Route'],
+  'Mount Kilimanjaro': ['7-Day Machame Route', '6-Day Marangu Route', '8-Day Lemosho Route', '5-Day Rongai Route'],
   'Tarangire National Park': ['Tarangire Day Safari', 'Tarangire & Lake Manyara Combo', 'Walking Safari Experience']
 };
 
@@ -167,7 +167,7 @@ export default function Booking() {
 
       const specialRequests = [itinerarySummary, formData.specialRequests.trim()].filter(Boolean).join('\n\n');
 
-      const { error } = await supabase.from('bookings').insert([
+      const { data: bookingData, error } = await supabase.from('bookings').insert([
         {
           first_name: formData.firstName.trim(),
           last_name: formData.lastName.trim(),
@@ -188,12 +188,30 @@ export default function Booking() {
           status: 'pending',
           user_id: user ? user.id : null
         }
-      ]);
+      ]).selected('id');
 
       if (error) {
         console.error("Database error:", error);
         setSubmitError(tr('bookingSaveError', 'Sorry, we could not save your booking. Please try again, or WhatsApp us directly.'));
         return;
+      }
+
+      // SEND ADMIN NOTIFICATION EMAIL
+      try {
+        const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-booking-email', { 
+          body: { 
+            type: 'admin_notification', 
+            booking_id: bookingData[0].id 
+          } 
+        });
+        
+        if (notificationError) {
+          console.error('Admin notification failed:', notificationError);
+        } else {
+          console.log('Admin notification sent to:', notificationData?.sentTo);
+        }
+      } catch (notifErr) {
+        console.error('Admin notification error:', notifErr);
       }
 
       const message = `
