@@ -228,7 +228,7 @@ ${itinerarySummary}
 - Prayer Facilities: ${formData.prayerFacilities ? '✅ Yes' : '❌ No'}
 - Private Vehicle: ${formData.privateVehicle ? '✅ Yes' : '❌ No'}
 - Female Guide: ${formData.femaleGuide ? '✅ Yes' : '❌ No'}
-- Modest Activities: ${formData.modestActivities ? '✅ Yes' : ' No'}
+- Modest Activities: ${formData.modestActivities ? '✅ Yes' : '❌ No'}
 
 🏨 *STAY & PLAY:*
 - Accommodation: ${formData.accommodation}

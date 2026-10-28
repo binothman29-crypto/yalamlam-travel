@@ -320,6 +320,13 @@ const translations = {
     changingPassword: 'Updating...',
     passwordChangedSuccess: '✅ Password changed successfully.',
     incorrectCurrentPassword: 'Current password is incorrect.',
+
+    // Dynamic Reviews
+    whatOurGuestsSay: "What Our Guests Say",
+    testimonialsSubtitle: "Read what Muslim families and couples say about their Halal experiences with us",
+    loadingReviews: "Loading reviews...",
+    reviewsLoadError: "Unable to load reviews at this time.",
+    noReviewsYet: "No reviews yet. Be the first to share your experience!",
   },
 
   ar: {
@@ -631,6 +638,13 @@ const translations = {
     changingPassword: 'جارٍ التحديث...',
     passwordChangedSuccess: '✅ تم تغيير كلمة المرور بنجاح.',
     incorrectCurrentPassword: 'كلمة المرور الحالية غير صحيحة.',
+
+    // Dynamic Reviews
+    whatOurGuestsSay: "ماذا يقول ضيوفنا",
+    testimonialsSubtitle: "اقرأ ما تقوله العائلات والأزواج المسلمون عن تجاربهم الحلال معنا",
+    loadingReviews: "جاري تحميل التقييمات...",
+    reviewsLoadError: "تعذر تحميل التقييمات في هذا الوقت.",
+    noReviewsYet: "لا توجد تقييمات بعد. كن الأول في مشاركة تجربتك!",
   },
 
   fr: {
@@ -942,6 +956,13 @@ const translations = {
     changingPassword: 'Mise à jour...',
     passwordChangedSuccess: '✅ Mot de passe changé avec succès.',
     incorrectCurrentPassword: 'Le mot de passe actuel est incorrect.',
+
+    // Dynamic Reviews
+    whatOurGuestsSay: "Ce que disent nos clients",
+    testimonialsSubtitle: "Découvrez ce que les familles et les couples musulmans disent de leurs expériences halal avec nous",
+    loadingReviews: "Chargement des avis...",
+    reviewsLoadError: "Impossible de charger les avis pour le moment.",
+    noReviewsYet: "Pas encore d'avis. Soyez le premier à partager votre expérience !",
   },
 
   tr: {
@@ -1253,6 +1274,13 @@ const translations = {
     changingPassword: 'Güncelleniyor...',
     passwordChangedSuccess: '✅ Şifre başarıyla değiştirildi.',
     incorrectCurrentPassword: 'Mevcut şifre yanlış.',
+
+    // Dynamic Reviews
+    whatOurGuestsSay: "Misafirlerimiz Ne Diyor",
+    testimonialsSubtitle: "Müslüman ailelerin ve çiftlerin bizimle olan helal deneyimleri hakkında neler söylediğini okuyun",
+    loadingReviews: "Yorumlar yükleniyor...",
+    reviewsLoadError: "Şu anda yorumlar yüklenemiyor.",
+    noReviewsYet: "Henüz yorum yok. Deneyiminizi paylaşan ilk kişi siz olun!",
   },
 };
 
