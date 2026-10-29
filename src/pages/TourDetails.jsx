@@ -2,19 +2,20 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
+import { useCurrency } from '../context/CurrencyContext'; // <-- ADDED
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80';
 
 export default function TourDetails() {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency(); // <-- ADDED
+  
   const tr = (key, fallback) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
   };
 
   const { id } = useParams();
-  
-  // 1. ALL useState hooks MUST be at the top
   const [tour, setTour] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
@@ -24,7 +25,6 @@ export default function TourDetails() {
   const [newReview, setNewReview] = useState({ name: '', rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  // 2. ALL useEffect hooks MUST be at the top, BEFORE any 'return'
   useEffect(() => {
     const fetchTour = async () => {
       const { data } = await supabase
@@ -55,7 +55,6 @@ export default function TourDetails() {
     fetchTour();
   }, [id]);
 
-  // MOVED THIS USEEFFECT TO THE TOP!
   useEffect(() => {
     if (tour) {
       document.title = `${tour.title} | Yalamlam Travel`;
@@ -64,25 +63,11 @@ export default function TourDetails() {
     }
   }, [tour]);
 
-  // 3. EARLY RETURNS MUST COME AFTER ALL HOOKS
   if (loading) return <div className="min-h-screen flex items-center justify-center text-safari-green">{tr('loadingTourDetails', 'Loading tour details...')}</div>;
   if (!tour) return <div className="min-h-screen flex items-center justify-center text-gray-800">{tr('tourNotFound', 'Tour not found.')} <Link to="/tours" className="text-safari-green underline ml-1">{tr('goBack', 'Go back to tours')}</Link></div>;
 
-  // 4. Regular variables and logic
   const galleryImages = Array.isArray(tour.gallery) ? tour.gallery.filter(Boolean) : [];
   const images = galleryImages.length > 0 ? galleryImages : [tour.image_url || FALLBACK_IMAGE];
-
-  const itineraryArray = Array.isArray(tour.itinerary) 
-    ? tour.itinerary 
-    : (typeof tour.itinerary === 'string' ? tour.itinerary.split('\n').filter(line => line.trim() !== '') : []);
-
-  const includedArray = Array.isArray(tour.included) 
-    ? tour.included 
-    : (typeof tour.included === 'string' ? tour.included.split(',').map(i => i.trim()).filter(i => i !== '') : []);
-
-  const excludedArray = Array.isArray(tour.excluded) 
-    ? tour.excluded 
-    : (typeof tour.excluded === 'string' ? tour.excluded.split(',').map(i => i.trim()).filter(i => i !== '') : []);
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -106,7 +91,18 @@ export default function TourDetails() {
     setSubmittingReview(false);
   };
 
-  // 5. THE MAIN RETURN STATEMENT
+  const itineraryArray = Array.isArray(tour.itinerary) 
+    ? tour.itinerary 
+    : (typeof tour.itinerary === 'string' ? tour.itinerary.split('\n').filter(line => line.trim() !== '') : []);
+
+  const includedArray = Array.isArray(tour.included) 
+    ? tour.included 
+    : (typeof tour.included === 'string' ? tour.included.split(',').map(i => i.trim()).filter(i => i !== '') : []);
+
+  const excludedArray = Array.isArray(tour.excluded) 
+    ? tour.excluded 
+    : (typeof tour.excluded === 'string' ? tour.excluded.split(',').map(i => i.trim()).filter(i => i !== '') : []);
+
   return (
     <div className="min-h-screen bg-safari-sand py-8 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
@@ -281,6 +277,7 @@ export default function TourDetails() {
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-2xl shadow-lg sticky top-24">
               <div className="flex items-baseline gap-2 mb-6">
+                {/* FORMATTED PRICE HERE */}
                 <span className="text-3xl font-bold text-safari-green">{formatPrice(tour.price)}</span>
                 <span className="text-gray-500 text-sm">{tr('perPerson', 'per person')}</span>
               </div>

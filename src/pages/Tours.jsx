@@ -2,24 +2,23 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
+import { useCurrency } from '../context/CurrencyContext'; // <-- ADDED
 
 export default function Tours() {
   const { t } = useLanguage();
-  // t() returns the key itself when a translation is missing, so new strings
-  // fall back to English until they are added to LanguageContext.
+  const { formatPrice } = useCurrency(); // <-- ADDED
+
   const tr = (key, fallback) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
   };
 
-  // The Destinations page links here as /tours?q=zanzibar
   const [searchParams] = useSearchParams();
 
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
-  // Filter States
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [maxPrice, setMaxPrice] = useState('All');
@@ -41,10 +40,8 @@ export default function Tours() {
       setLoading(false);
     };
     fetchTours();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 1. Filter Logic (null-safe: a tour missing a title/location must not crash the page)
   const query = searchQuery.trim().toLowerCase();
   const filteredTours = tours.filter(tour => {
     const matchesSearch =
@@ -57,17 +54,15 @@ export default function Tours() {
     return matchesSearch && matchesCategory && matchesPrice;
   });
 
-  // 2. Sort Logic
   const sortedTours = [...filteredTours].sort((a, b) => {
     if (sortBy === 'price-asc') return (Number(a.price) || 0) - (Number(b.price) || 0);
     if (sortBy === 'price-desc') return (Number(b.price) || 0) - (Number(a.price) || 0);
     if (sortBy === 'duration') {
-      // Extracts the number from strings like "3 Days" or "5 Days"
       const numA = parseInt(a.duration, 10) || 0;
       const numB = parseInt(b.duration, 10) || 0;
       return numA - numB;
     }
-    return 0; // Default: newest first (from DB order)
+    return 0;
   });
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-safari-green">{t('loadingTours')}</div>;
@@ -75,8 +70,6 @@ export default function Tours() {
   return (
     <div className="min-h-screen bg-safari-sand py-12 px-4">
       <div className="max-w-7xl mx-auto">
-
-        {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-safari-green mb-4">{t('exploreToursTitle')}</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">{t('exploreToursSubtitle')}</p>
@@ -88,11 +81,8 @@ export default function Tours() {
           </div>
         )}
 
-        {/* Advanced Filter Bar */}
         <div className="bg-white p-6 rounded-2xl shadow-md mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-            {/* Search */}
             <div className="relative">
               <span className="absolute left-3 top-3 text-gray-400">🔍</span>
               <input
@@ -104,7 +94,6 @@ export default function Tours() {
               />
             </div>
 
-            {/* Category - option values stay in English: they must match the category values stored in the database */}
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -117,7 +106,6 @@ export default function Tours() {
               <option value="Kilimanjaro">{t('kilimanjaro')}</option>
             </select>
 
-            {/* Max Price */}
             <select
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
@@ -130,7 +118,6 @@ export default function Tours() {
               <option value="5000">{t('under5000')}</option>
             </select>
 
-            {/* Sort By */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -144,12 +131,10 @@ export default function Tours() {
           </div>
         </div>
 
-        {/* Results Count */}
         <p className="text-gray-600 mb-6 font-medium">
           {t('showingTours')} {sortedTours.length} {sortedTours.length === 1 ? t('tour') : t('toursPlural')}
         </p>
 
-        {/* Tours Grid */}
         {sortedTours.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
             <p className="text-2xl text-gray-400 mb-4">🔍</p>
@@ -195,6 +180,7 @@ export default function Tours() {
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <div>
                       <span className="text-xs text-gray-500 block">{t('startingFrom')}</span>
+                      {/* FORMATTED PRICE HERE */}
                       <span className="text-2xl font-bold text-safari-green">{formatPrice(tour.price)}</span>
                     </div>
                     <span className="bg-safari-green text-white px-4 py-2 rounded-full text-sm font-bold group-hover:bg-safari-teal transition-colors">
