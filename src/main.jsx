@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import ReactGA from 'react-ga4';
 import { LanguageProvider } from './context/LanguageContext'
+import { CurrencyProvider } from './context/CurrencyContext'
 import App from './App'
 import './index.css'
 
@@ -14,6 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <LanguageProvider>
         <App />
       </LanguageProvider>
+      <CurrencyProvider>
+        <App />
+      </CurrencyProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )

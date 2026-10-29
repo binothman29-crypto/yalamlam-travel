@@ -281,7 +281,7 @@ export default function TourDetails() {
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-2xl shadow-lg sticky top-24">
               <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-3xl font-bold text-safari-green">${tour.price}</span>
+                <span className="text-3xl font-bold text-safari-green">{formatPrice(tour.price)}</span>
                 <span className="text-gray-500 text-sm">{tr('perPerson', 'per person')}</span>
               </div>
 

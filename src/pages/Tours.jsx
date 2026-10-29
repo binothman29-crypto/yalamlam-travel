@@ -195,7 +195,7 @@ export default function Tours() {
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                     <div>
                       <span className="text-xs text-gray-500 block">{t('startingFrom')}</span>
-                      <span className="text-2xl font-bold text-safari-green">${tour.price}</span>
+                      <span className="text-2xl font-bold text-safari-green">{formatPrice(tour.price)}</span>
                     </div>
                     <span className="bg-safari-green text-white px-4 py-2 rounded-full text-sm font-bold group-hover:bg-safari-teal transition-colors">
                       {t('viewDetails')}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -10,6 +11,7 @@ export default function Navbar() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const navigate = useNavigate();
   const { lang, t, changeLanguage } = useLanguage();
+  const { currency, changeCurrency, formatPrice } = useCurrency();
 
   useEffect(() => {
     const checkAuthAndStaff = async (currentUser) => {
@@ -108,6 +110,20 @@ export default function Navbar() {
               )}
             </div>
             
+            {/* Currency Switcher */}
+            <div className="relative flex-shrink-0 border-l border-gray-200 pl-3 ml-1">
+              <select 
+                value={currency} 
+                onChange={(e) => changeCurrency(e.target.value)}
+                className="appearance-none bg-transparent text-sm font-medium text-gray-700 hover:text-safari-green focus:outline-none cursor-pointer pr-6"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.25rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25em 1.25em' }}
+              >
+                {Object.keys(rates).map((curr) => (
+                  <option key={curr} value={curr}>{curr}</option>
+                ))}
+              </select>
+            </div>
+
             {user ? (
               <div className="flex items-center space-x-3 flex-shrink-0">
                 {/* NEW: Admin Dashboard Link (Only visible to staff) */}
