@@ -54,10 +54,10 @@ export default function Navbar() {
 
   // FIX 2: Added flag emojis back to the languages array
   const languages = [
-    { code: 'en', name: 'English', flag: '🇬🇧' },
-    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
-    { code: 'fr', name: 'French', flag: '🇫🇷' },
-    { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
+    { code: 'en', name: 'English' },
+    { code: 'ar', name: 'العربية' },
+    { code: 'fr', name: 'French' },
+    { code: 'tr', name: 'Turkish' },
   ];
 
   const currentLang = languages.find(l => l.code === lang);

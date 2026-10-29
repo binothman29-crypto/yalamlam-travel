@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate, Link } from 'react-router-dom';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 const bookingRef = (id) => `YAL-${String(id).substring(0, 8).toUpperCase()}`;
 const escapeLike = (value) => value.replace(/[\\%_]/g, '\\$&');
@@ -34,6 +36,9 @@ export default function Admin() {
   const [activityLogs, setActivityLogs] = useState([]);
 
   const [activeTab, setActiveTab] = useState('bookings');
+  const [bookingsView, setBookingsView] = useState('list'); // 'list' or 'calendar'
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  
   const [editingBooking, setEditingBooking] = useState(null);
   const [bookingForm, setBookingForm] = useState({});
 
@@ -45,7 +50,6 @@ export default function Admin() {
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('manager');
 
-  // NEW: State for mobile sidebar toggle
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigate = useNavigate();
@@ -463,7 +467,6 @@ export default function Admin() {
   if (loadingAuth) return <div className="min-h-screen flex items-center justify-center">Checking access...</div>;
   if (!isStaff) return null;
 
-  // Helper to change tab and close mobile sidebar
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSidebarOpen(false);
@@ -472,18 +475,12 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
-      
-      {/* --- MOBILE OVERLAY --- */}
       {sidebarOpen && (
-        <div 
-          onClick={() => setSidebarOpen(false)} 
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-        ></div>
+        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-30 lg:hidden"></div>
       )}
 
       {/* --- LEFT SIDEBAR --- */}
       <aside className={`w-64 bg-safari-green text-white flex flex-col fixed lg:sticky top-0 h-screen z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Logo Area */}
         <div className="p-6 border-b border-white/10 flex items-center gap-3">
           <img src="/logo.png" alt="Yalamlam" className="h-10 w-10 rounded-full bg-white p-1" />
           <div>
@@ -492,14 +489,11 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto py-4">
           <div className="px-4 mb-2 text-xs font-bold text-white/50 uppercase tracking-wider">Main</div>
-          
           <button onClick={() => handleTabChange('bookings')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'bookings' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <span>📅</span> Bookings <span className="ml-auto bg-white/20 text-xs px-2 py-0.5 rounded-full">{bookings.length}</span>
           </button>
-          
           <button onClick={() => handleTabChange('contacts')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'contacts' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
             <span>💬</span> Messages <span className="ml-auto bg-white/20 text-xs px-2 py-0.5 rounded-full">{contacts.length}</span>
           </button>
@@ -507,15 +501,12 @@ export default function Admin() {
           {(userRole === 'admin' || userRole === 'manager') && (
             <>
               <div className="px-4 mt-6 mb-2 text-xs font-bold text-white/50 uppercase tracking-wider">Content & Data</div>
-              
               <button onClick={() => handleTabChange('analytics')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'analytics' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>📊</span> Analytics
               </button>
-              
               <button onClick={() => handleTabChange('reviews')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'reviews' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>⭐</span> Reviews <span className="ml-auto bg-white/20 text-xs px-2 py-0.5 rounded-full">{reviews.filter(r => !r.is_approved).length}</span>
               </button>
-              
               <button onClick={() => handleTabChange('tours')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'tours' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>🏝️</span> Tours
               </button>
@@ -525,11 +516,9 @@ export default function Admin() {
           {userRole === 'admin' && (
             <>
               <div className="px-4 mt-6 mb-2 text-xs font-bold text-white/50 uppercase tracking-wider">Administration</div>
-              
               <button onClick={() => handleTabChange('activity')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'activity' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>📋</span> Activity Log
               </button>
-              
               <button onClick={() => handleTabChange('team')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'team' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>👥</span> Team Management
               </button>
@@ -537,7 +526,6 @@ export default function Admin() {
           )}
         </nav>
 
-        {/* User Profile & Logout */}
         <div className="p-4 border-t border-white/10 bg-black/10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-full bg-safari-gold flex items-center justify-center text-white font-bold text-sm">
@@ -556,8 +544,6 @@ export default function Admin() {
 
       {/* --- MAIN CONTENT AREA --- */}
       <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* Top Header */}
         <header className="bg-white shadow-sm sticky top-0 z-20 px-4 py-3 flex justify-between items-center border-b border-gray-200">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-safari-green">
@@ -573,7 +559,6 @@ export default function Admin() {
               {activeTab === 'team' && 'Team Management'}
             </h1>
           </div>
-          
           <div className="flex gap-2">
             <Link to="/" className="bg-safari-gold text-white px-3 py-2 rounded-lg hover:bg-yellow-600 transition text-sm font-bold flex items-center gap-1">
                <span className="hidden sm:inline">View Website</span>
@@ -584,43 +569,136 @@ export default function Admin() {
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="p-4 md:p-8 flex-grow">
           <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm p-6">
             
             {/* --- BOOKINGS TAB --- */}
             {activeTab === 'bookings' && (
-              <div className="overflow-x-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-safari-green">All Bookings</h2>
-                  <div className="flex gap-2">
-                    {/* Export CSV Button */}
-                    <button onClick={handleExportCSV} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 transition">📥 Export CSV</button>
-                  <button onClick={sendUpcomingReminders} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition">🔔 Send 48h Reminders</button>
+              <div>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <h2 className="text-xl font-bold text-safari-green">Customer Bookings</h2>
+                  <div className="flex gap-2 flex-wrap">
+                    <div className="bg-gray-100 rounded-lg p-1 flex">
+                      <button onClick={() => setBookingsView('list')} className={`px-4 py-2 rounded-md text-sm font-bold transition ${bookingsView === 'list' ? 'bg-white text-safari-green shadow-sm' : 'text-gray-600'}`}>
+                        📋 List View
+                      </button>
+                      <button onClick={() => setBookingsView('calendar')} className={`px-4 py-2 rounded-md text-sm font-bold transition ${bookingsView === 'calendar' ? 'bg-white text-safari-green shadow-sm' : 'text-gray-600'}`}>
+                        📅 Calendar View
+                      </button>
+                    </div>
+                    <button onClick={handleExportCSV} className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-900 transition flex items-center gap-2">📥 Export CSV</button>
+                    <button onClick={sendUpcomingReminders} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition flex items-center gap-2">🔔 Send 48h Reminders</button>
                   </div>
                 </div>
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
-                    <tr><th className="p-4">Date</th><th className="p-4">Customer</th><th className="p-4">Tour</th><th className="p-4">Dates</th><th className="p-4">Status</th><th className="p-4">Actions</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 text-sm">
-                    {bookings.map(booking => (
-                      <tr key={booking.id} className="hover:bg-gray-50">
-                        <td className="p-4 text-gray-500">{new Date(booking.created_at).toLocaleDateString()}</td>
-                        <td className="p-4"><div className="font-bold text-gray-800">{booking.first_name} {booking.last_name}</div><div className="text-gray-500 text-xs">{booking.email} | {booking.phone}</div><div className="text-gray-400 text-xs">{bookingRef(booking.id)}</div></td>
-                        <td className="p-4 capitalize">{booking.destination}</td>
-                        <td className="p-4 text-gray-600">{booking.start_date} to {booking.end_date}</td>
-                        <td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : booking.status === 'completed' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'}`}>{booking.status}</span></td>
-                        <td className="p-4 flex flex-col gap-2">
-                          <div className="flex gap-2"><button onClick={() => openEditBooking(booking)} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold hover:bg-blue-200">Edit</button>{booking.status === 'pending' && (<button onClick={() => updateStatus(booking.id, 'confirmed')} className="text-safari-green font-bold hover:underline text-xs">Confirm</button>)}</div>
-                          <div className="flex flex-wrap gap-1 mt-1">{booking.payment_status !== 'deposit_paid' && (<button onClick={() => updatePaymentStatus(booking.id, 'deposit_paid')} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded hover:bg-yellow-200">Mark Deposit</button>)}{booking.payment_status !== 'fully_paid' && (<button onClick={() => updatePaymentStatus(booking.id, 'fully_paid')} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">Mark Paid</button>)}</div>
-                          <div className="flex gap-2 mt-1"><a href={`mailto:${booking.email}`} className="text-blue-600 hover:underline text-xs">Email</a><a href={`https://wa.me/${(booking.phone || '').replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp</a></div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {bookings.length === 0 && <p className="p-8 text-center text-gray-500">No bookings yet.</p>}
+
+                {/* LIST VIEW */}
+                {bookingsView === 'list' && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
+                        <tr><th className="p-4">Date</th><th className="p-4">Customer</th><th className="p-4">Tour</th><th className="p-4">Dates</th><th className="p-4">Status</th><th className="p-4">Actions</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-sm">
+                        {bookings.map(booking => (
+                          <tr key={booking.id} className="hover:bg-gray-50">
+                            <td className="p-4 text-gray-500">{new Date(booking.created_at).toLocaleDateString()}</td>
+                            <td className="p-4">
+                              <div className="font-bold text-gray-800">{booking.first_name} {booking.last_name}</div>
+                              <div className="text-gray-500 text-xs">{booking.email} | {booking.phone}</div>
+                              <div className="text-gray-400 text-xs">{bookingRef(booking.id)}</div>
+                            </td>
+                            <td className="p-4 capitalize">{booking.destination}</td>
+                            <td className="p-4 text-gray-600">{booking.start_date} to {booking.end_date}</td>
+                            <td className="p-4">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : booking.status === 'completed' ? 'bg-gray-100 text-gray-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {booking.status}
+                              </span>
+                            </td>
+                            <td className="p-4 flex flex-col gap-2">
+                              <div className="flex gap-2">
+                                <button onClick={() => openEditBooking(booking)} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold hover:bg-blue-200">Edit</button>
+                                {booking.status === 'pending' && (<button onClick={() => updateStatus(booking.id, 'confirmed')} className="text-safari-green font-bold hover:underline text-xs">Confirm</button>)}
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {booking.payment_status !== 'deposit_paid' && (<button onClick={() => updatePaymentStatus(booking.id, 'deposit_paid')} className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded hover:bg-yellow-200">Mark Deposit</button>)}
+                                {booking.payment_status !== 'fully_paid' && (<button onClick={() => updatePaymentStatus(booking.id, 'fully_paid')} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">Mark Paid</button>)}  
+                              </div>
+                              <div className="flex gap-2 mt-1">
+                                <a href={`mailto:${booking.email}`} className="text-blue-600 hover:underline text-xs">Email</a>
+                                <a href={`https://wa.me/${(booking.phone || '').replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp</a>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {bookings.length === 0 && <p className="p-8 text-center text-gray-500">No bookings yet.</p>}
+                  </div>
+                )}
+
+                {/* CALENDAR VIEW */}
+                {bookingsView === 'calendar' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                      <Calendar
+                        onChange={setSelectedDate}
+                        value={selectedDate}
+                        tileContent={({ date, view }) => {
+                          if (view === 'month') {
+                            const dateStr = date.toISOString().split('T')[0];
+                            const dayBookings = bookings.filter(b => b.status === 'confirmed' && (b.start_date <= dateStr && b.end_date >= dateStr));
+                            if (dayBookings.length > 0) {
+                              return (
+                                <div className="flex justify-center mt-1">
+                                  <div className="bg-safari-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                                    {dayBookings.length}
+                                  </div>
+                                </div>
+                              );
+                            }
+                          }
+                          return null;
+                        }}
+                        tileClassName={({ date, view }) => {
+                          if (view === 'month') {
+                            const dateStr = date.toISOString().split('T')[0];
+                            const hasBooking = bookings.some(b => b.status === 'confirmed' && b.start_date <= dateStr && b.end_date >= dateStr);
+                            return hasBooking ? 'bg-green-50 font-bold text-safari-green' : '';
+                          }
+                          return null;
+                        }}
+                        className="w-full border-0 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                      <h3 className="text-lg font-bold text-safari-green mb-4">
+                        Bookings on {selectedDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </h3>
+                      {bookings.filter(b => b.status === 'confirmed' && b.start_date <= selectedDate.toISOString().split('T')[0] && b.end_date >= selectedDate.toISOString().split('T')[0]).length === 0 ? (
+                        <p className="text-gray-500 text-sm">No confirmed bookings on this date.</p>
+                      ) : (
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                          {bookings.filter(b => b.status === 'confirmed' && b.start_date <= selectedDate.toISOString().split('T')[0] && b.end_date >= selectedDate.toISOString().split('T')[0]).map(booking => (
+                            <div key={booking.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition bg-safari-sand/30">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="font-bold text-gray-800 text-sm">{booking.first_name} {booking.last_name}</span>
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Confirmed</span>
+                              </div>
+                              <p className="text-xs text-gray-600 mb-1 font-medium">{booking.destination}</p>
+                              <p className="text-xs text-gray-500">Guests: {booking.guests}</p>
+                              <p className="text-xs text-gray-500">{booking.start_date} to {booking.end_date}</p>
+                              <div className="mt-2 pt-2 border-t border-gray-200 flex gap-2">
+                                <a href={`mailto:${booking.email}`} className="text-blue-600 hover:underline text-xs">Email</a>
+                                <a href={`https://wa.me/${(booking.phone || '').replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp</a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -637,7 +715,10 @@ export default function Admin() {
                         <td className="p-4 font-bold">{contact.name}</td>
                         <td className="p-4 text-gray-600">{contact.email}<br/>{contact.phone}</td>
                         <td className="p-4 text-gray-700 max-w-xs truncate">{contact.message}</td>
-                        <td className="p-4 flex flex-col gap-1"><a href={`mailto:${contact.email}?subject=${encodeURIComponent('Re: Your message to Yalamlam')}`} className="text-blue-600 hover:underline text-xs">Email Reply</a>{contact.phone && <a href={`https://wa.me/${contact.phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Assalamu Alaikum ${contact.name}, thank you for contacting Yalamlam...`)}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp Reply</a>}</td>
+                        <td className="p-4 flex flex-col gap-1">
+                          <a href={`mailto:${contact.email}?subject=${encodeURIComponent('Re: Your message to Yalamlam')}`} className="text-blue-600 hover:underline text-xs">Email Reply</a>
+                          {contact.phone && <a href={`https://wa.me/${contact.phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Assalamu Alaikum ${contact.name}, thank you for contacting Yalamlam...`)}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline text-xs">WhatsApp Reply</a>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -661,7 +742,10 @@ export default function Admin() {
                         <td className="p-4 text-yellow-500 font-bold">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</td>
                         <td className="p-4 text-gray-700 max-w-xs truncate">{review.comment}</td>
                         <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-bold ${review.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{review.is_approved ? 'Approved' : 'Pending'}</span></td>
-                        <td className="p-4 flex gap-2">{!review.is_approved && (<button onClick={() => handleApproveReview(review.id)} className="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold hover:bg-green-200">Approve</button>)}<button onClick={() => handleDeleteReview(review.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">Delete</button></td>
+                        <td className="p-4 flex gap-2">
+                          {!review.is_approved && (<button onClick={() => handleApproveReview(review.id)} className="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold hover:bg-green-200">Approve</button>)}
+                          <button onClick={() => handleDeleteReview(review.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">Delete</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -681,8 +765,39 @@ export default function Admin() {
                   <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-purple-500"><p className="text-gray-500 text-sm font-medium uppercase">Total Messages</p><p className="text-4xl font-bold text-purple-600 mt-2">{totalContacts}</p></div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="bg-white p-6 rounded-2xl shadow-sm"><h3 className="text-lg font-bold text-gray-800 mb-6">Top Destinations</h3>{topDestinations.length === 0 ? (<p className="text-gray-500 text-center py-8">No booking data yet.</p>) : (<div className="space-y-4">{topDestinations.map(([dest, count]) => {const percentage = totalBookings > 0 ? Math.round((count / totalBookings) * 100) : 0;return (<div key={dest}><div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700">{dest}</span><span className="text-gray-500">{count} bookings ({percentage}%)</span></div><div className="w-full bg-gray-100 rounded-full h-3"><div className="bg-safari-green h-3 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div></div></div>);})}</div>)}</div>
-                  <div className="bg-white p-6 rounded-2xl shadow-sm"><h3 className="text-lg font-bold text-gray-800 mb-6">Quick Insights</h3><div className="space-y-4"><div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl"><span className="text-2xl">📈</span><div><p className="font-bold text-gray-800">Conversion Rate</p><p className="text-sm text-gray-600">{totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0}% of all bookings are confirmed.</p></div></div><div className="flex items-start gap-4 p-4 bg-yellow-50 rounded-xl"><span className="text-2xl"></span><div><p className="font-bold text-gray-800">Action Required</p><p className="text-sm text-gray-600">You have {pendingBookings} pending booking(s) waiting for confirmation.</p></div></div><div className="flex items-start gap-4 p-4 bg-red-50 rounded-xl"><span className="text-2xl">🚫</span><div><p className="font-bold text-gray-800">Cancellations</p><p className="text-sm text-gray-600">{cancelledBookings} booking(s) have been cancelled.</p></div></div></div></div>
+                  <div className="bg-white p-6 rounded-2xl shadow-sm">
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Top Destinations</h3>
+                    {topDestinations.length === 0 ? (<p className="text-gray-500 text-center py-8">No booking data yet.</p>) : (
+                      <div className="space-y-4">
+                        {topDestinations.map(([dest, count]) => {
+                          const percentage = totalBookings > 0 ? Math.round((count / totalBookings) * 100) : 0;
+                          return (
+                            <div key={dest}>
+                              <div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700">{dest}</span><span className="text-gray-500">{count} bookings ({percentage}%)</span></div>
+                              <div className="w-full bg-gray-100 rounded-full h-3"><div className="bg-safari-green h-3 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl shadow-sm">
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Quick Insights</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl">
+                        <span className="text-2xl">📈</span>
+                        <div><p className="font-bold text-gray-800">Conversion Rate</p><p className="text-sm text-gray-600">{totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0}% of all bookings are confirmed.</p></div>
+                      </div>
+                      <div className="flex items-start gap-4 p-4 bg-yellow-50 rounded-xl">
+                        <span className="text-2xl">⏳</span>
+                        <div><p className="font-bold text-gray-800">Action Required</p><p className="text-sm text-gray-600">You have {pendingBookings} pending booking(s) waiting for confirmation.</p></div>
+                      </div>
+                      <div className="flex items-start gap-4 p-4 bg-red-50 rounded-xl">
+                        <span className="text-2xl">🚫</span>
+                        <div><p className="font-bold text-gray-800">Cancellations</p><p className="text-sm text-gray-600">{cancelledBookings} booking(s) have been cancelled.</p></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -692,24 +807,98 @@ export default function Admin() {
               <div>
                 <h2 className="text-xl font-bold text-safari-green mb-4">{editingTour ? 'Edit Tour' : 'Add New Tour'}</h2>
                 <form onSubmit={handleTourSubmit} className="space-y-4 mb-8 bg-gray-50 p-6 rounded-lg">
-                  <div className="grid md:grid-cols-2 gap-4"><input type="text" name="title" value={newTour.title} onChange={handleTourChange} placeholder="Tour Title" required className="p-3 border rounded-lg w-full" /><input type="text" name="location" value={newTour.location} onChange={handleTourChange} placeholder="Location" required className="p-3 border rounded-lg w-full" /><select name="category" value={newTour.category} onChange={handleTourChange} required className="p-3 border rounded-lg w-full"><option value="">Select Category</option><option value="Zanzibar Tours">Zanzibar Tours</option><option value="Tanzania Safaris">Tanzania Safaris</option><option value="Halal Packages">Halal Packages</option><option value="Kilimanjaro">Kilimanjaro</option></select><input type="number" name="price" value={newTour.price} onChange={handleTourChange} placeholder="Price (USD)" required className="p-3 border rounded-lg w-full" /><input type="text" name="duration" value={newTour.duration} onChange={handleTourChange} placeholder="Duration (e.g., 3 Days)" className="p-3 border rounded-lg w-full" /><input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} className="p-3 border rounded-lg w-full bg-white" /></div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <input type="text" name="title" value={newTour.title} onChange={handleTourChange} placeholder="Tour Title" required className="p-3 border rounded-lg w-full" />
+                    <input type="text" name="location" value={newTour.location} onChange={handleTourChange} placeholder="Location" required className="p-3 border rounded-lg w-full" />
+                    <select name="category" value={newTour.category} onChange={handleTourChange} required className="p-3 border rounded-lg w-full">
+                      <option value="">Select Category</option>
+                      <option value="Zanzibar Tours">Zanzibar Tours</option>
+                      <option value="Tanzania Safaris">Tanzania Safaris</option>
+                      <option value="Halal Packages">Halal Packages</option>
+                      <option value="Kilimanjaro">Kilimanjaro</option>
+                    </select>
+                    <input type="number" name="price" value={newTour.price} onChange={handleTourChange} placeholder="Price (USD)" required className="p-3 border rounded-lg w-full" />
+                    <input type="text" name="duration" value={newTour.duration} onChange={handleTourChange} placeholder="Duration (e.g., 3 Days)" className="p-3 border rounded-lg w-full" />
+                    <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} className="p-3 border rounded-lg w-full bg-white" />
+                  </div>
                   <textarea name="description" value={newTour.description} onChange={handleTourChange} placeholder="Short Description" rows="2" className="p-3 border rounded-lg w-full"></textarea>
-                  <div className="grid md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-500 mb-1">What's Included (comma separated)</label><textarea name="included" value={newTour.included} onChange={handleTourChange} placeholder="e.g. Breakfast, Guide, Transport" rows="2" className="p-3 border rounded-lg w-full"></textarea></div><div><label className="block text-xs font-bold text-gray-500 mb-1">What's Excluded (comma separated)</label><textarea name="excluded" value={newTour.excluded} onChange={handleTourChange} placeholder="e.g. Flights, Tips, Personal Expenses" rows="2" className="p-3 border rounded-lg w-full"></textarea></div></div>
-                  <div><label className="block text-xs font-bold text-gray-500 mb-1">Image Gallery URLs (comma separated)</label><input type="text" name="gallery" value={newTour.gallery} onChange={handleTourChange} placeholder="https://..., https://..." className="p-3 border rounded-lg w-full" /></div>
-                  <div><label className="block text-xs font-bold text-gray-500 mb-1">Day-by-Day Itinerary (one day per line)</label><textarea name="itinerary" value={newTour.itinerary} onChange={handleTourChange} placeholder="Day 1: Arrival&#10;Day 2: Safari" rows="4" className="p-3 border rounded-lg w-full font-mono text-sm"></textarea></div>
-                  <div className="flex flex-col gap-4 mt-4"><div className="flex flex-col gap-2"><label className="text-sm font-bold text-gray-700">Halal Friendliness: <span className="text-safari-green text-lg">{newTour.halal_percentage}%</span></label><input type="range" name="halal_percentage" min="0" max="100" step="10" value={newTour.halal_percentage} onChange={handleTourChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-safari-green" /><div className="flex justify-between text-xs text-gray-500"><span>0% (Not Halal)</span><span>50% (Partially Halal)</span><span>100% (Fully Halal)</span></div></div><button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition self-end">{editingTour ? 'Update Tour' : 'Add Tour'}</button></div>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">What's Included (comma separated)</label>
+                      <textarea name="included" value={newTour.included} onChange={handleTourChange} placeholder="e.g. Breakfast, Guide, Transport" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 mb-1">What's Excluded (comma separated)</label>
+                      <textarea name="excluded" value={newTour.excluded} onChange={handleTourChange} placeholder="e.g. Flights, Tips, Personal Expenses" rows="2" className="p-3 border rounded-lg w-full"></textarea>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Image Gallery URLs (comma separated)</label>
+                    <input type="text" name="gallery" value={newTour.gallery} onChange={handleTourChange} placeholder="https://..., https://..." className="p-3 border rounded-lg w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Day-by-Day Itinerary (one day per line)</label>
+                    <textarea name="itinerary" value={newTour.itinerary} onChange={handleTourChange} placeholder="Day 1: Arrival&#10;Day 2: Safari" rows="4" className="p-3 border rounded-lg w-full font-mono text-sm"></textarea>
+                  </div>
+                  <div className="flex flex-col gap-4 mt-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-gray-700">Halal Friendliness: <span className="text-safari-green text-lg">{newTour.halal_percentage}%</span></label>
+                      <input type="range" name="halal_percentage" min="0" max="100" step="10" value={newTour.halal_percentage} onChange={handleTourChange} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-safari-green" />
+                      <div className="flex justify-between text-xs text-gray-500"><span>0% (Not Halal)</span><span>50% (Partially Halal)</span><span>100% (Fully Halal)</span></div>
+                    </div>
+                    <button type="submit" className="bg-safari-green text-white px-6 py-2 rounded-lg font-bold hover:bg-safari-teal transition self-end">{editingTour ? 'Update Tour' : 'Add Tour'}</button>
+                  </div>
                 </form>
                 {editingTour && (<button type="button" onClick={() => { setEditingTour(null); setImageFile(null); setNewTour(EMPTY_TOUR); }} className="text-red-500 text-sm hover:underline mt-2">Cancel Edit</button>)}
                 <h3 className="text-lg font-bold text-gray-700 mb-4">All Tours</h3>
-                <div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead className="bg-gray-50 text-gray-600 text-sm uppercase"><tr><th className="p-4">Tour</th><th className="p-4">Price</th><th className="p-4">Actions</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm">{tours.map(tour => (<tr key={tour.id} className="hover:bg-gray-50"><td className="p-4 font-bold">{tour.title}</td><td className="p-4">${tour.price}</td><td className="p-4 flex gap-2"><button onClick={() => handleEditTour(tour)} className="bg-safari-gold text-safari-green px-3 py-1 rounded-lg text-sm hover:bg-yellow-400 transition">Edit</button><button onClick={() => handleDeleteTour(tour.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Delete</button></td></tr>))}</tbody></table></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 text-gray-600 text-sm uppercase"><tr><th className="p-4">Tour</th><th className="p-4">Price</th><th className="p-4">Actions</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100 text-sm">
+                      {tours.map(tour => (
+                        <tr key={tour.id} className="hover:bg-gray-50">
+                          <td className="p-4 font-bold">{tour.title}</td>
+                          <td className="p-4">${tour.price}</td>
+                          <td className="p-4 flex gap-2">
+                            <button onClick={() => handleEditTour(tour)} className="bg-safari-gold text-safari-green px-3 py-1 rounded-lg text-sm hover:bg-yellow-400 transition">Edit</button>
+                            <button onClick={() => handleDeleteTour(tour.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
             {/* --- ACTIVITY LOG TAB --- */}
             {activeTab === 'activity' && userRole === 'admin' && (
               <div className="overflow-x-auto">
-                <div className="flex justify-between items-center mb-4"><div><h2 className="text-xl font-bold text-safari-green">📋 Activity Log</h2><p className="text-sm text-gray-500 mt-1">Track all staff actions for security and accountability</p></div><span className="text-xs text-gray-400">Showing last {activityLogs.length} activities</span></div>
-                {activityLogs.length === 0 ? (<div className="text-center py-12 bg-gray-50 rounded-lg"><p className="text-gray-500 text-lg">No activity recorded yet.</p><p className="text-gray-400 text-sm mt-2">Actions will appear here as staff members use the dashboard.</p></div>) : (<table className="w-full text-left border-collapse"><thead className="bg-gray-50 text-gray-600 text-sm uppercase"><tr><th className="p-4">Date & Time</th><th className="p-4">Staff Member</th><th className="p-4">Action</th><th className="p-4">Details</th><th className="p-4">Device</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm">{activityLogs.map((log) => {const actionColor = log.action.includes('Logged') ? 'bg-blue-100 text-blue-700' : log.action.includes('Created') || log.action.includes('Added') || log.action.includes('Approved') ? 'bg-green-100 text-green-700' : log.action.includes('Deleted') || log.action.includes('Removed') ? 'bg-red-100 text-red-700' : log.action.includes('Updated') || log.action.includes('Edited') ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700';return (<tr key={log.id} className="hover:bg-gray-50"><td className="p-4 text-gray-500 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td><td className="p-4"><div className="font-bold text-gray-800">{log.user_name || 'Unknown'}</div><div className="text-gray-500 text-xs">{log.user_email}</div></td><td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-bold ${actionColor}`}>{log.action}</span></td><td className="p-4 text-gray-700 max-w-md">{log.details || '—'}</td><td className="p-4 text-gray-400 text-xs max-w-xs truncate">{log.user_agent?.includes('Chrome') ? '🌐 Chrome' : log.user_agent?.includes('Firefox') ? '🦊 Firefox' : log.user_agent?.includes('Safari') ? '🧭 Safari' : log.user_agent?.includes('Mobile') ? '📱 Mobile' : '💻 Desktop'}</td></tr>);})}</tbody></table>)}
+                <div className="flex justify-between items-center mb-4">
+                  <div><h2 className="text-xl font-bold text-safari-green">📋 Activity Log</h2><p className="text-sm text-gray-500 mt-1">Track all staff actions for security and accountability</p></div>
+                  <span className="text-xs text-gray-400">Showing last {activityLogs.length} activities</span>
+                </div>
+                {activityLogs.length === 0 ? (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg"><p className="text-gray-500 text-lg">No activity recorded yet.</p><p className="text-gray-400 text-sm mt-2">Actions will appear here as staff members use the dashboard.</p></div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 text-gray-600 text-sm uppercase"><tr><th className="p-4">Date & Time</th><th className="p-4">Staff Member</th><th className="p-4">Action</th><th className="p-4">Details</th><th className="p-4">Device</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100 text-sm">
+                      {activityLogs.map((log) => {
+                        const actionColor = log.action.includes('Logged') ? 'bg-blue-100 text-blue-700' : log.action.includes('Created') || log.action.includes('Added') || log.action.includes('Approved') ? 'bg-green-100 text-green-700' : log.action.includes('Deleted') || log.action.includes('Removed') ? 'bg-red-100 text-red-700' : log.action.includes('Updated') || log.action.includes('Edited') ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700';
+                        return (
+                          <tr key={log.id} className="hover:bg-gray-50">
+                            <td className="p-4 text-gray-500 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                            <td className="p-4"><div className="font-bold text-gray-800">{log.user_name || 'Unknown'}</div><div className="text-gray-500 text-xs">{log.user_email}</div></td>
+                            <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-bold ${actionColor}`}>{log.action}</span></td>
+                            <td className="p-4 text-gray-700 max-w-md">{log.details || '—'}</td>
+                            <td className="p-4 text-gray-400 text-xs max-w-xs truncate">{log.user_agent?.includes('Chrome') ? '🌐 Chrome' : log.user_agent?.includes('Firefox') ? '🦊 Firefox' : log.user_agent?.includes('Safari') ? '🧭 Safari' : log.user_agent?.includes('Mobile') ? '📱 Mobile' : '💻 Desktop'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
 
@@ -718,9 +907,33 @@ export default function Admin() {
               <div>
                 <h2 className="text-xl font-bold text-safari-green mb-4">Manage Staff Access</h2>
                 <p className="text-gray-600 mb-6 text-sm">Enter their name and email below. This creates their login automatically and shows you a temporary password to share with them.</p>
-                <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 mb-8 bg-gray-50 p-6 rounded-lg"><input type="text" value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Staff Member Name" required className="p-3 border rounded-lg flex-1" /><input type="email" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} placeholder="Staff Email Address" required className="p-3 border rounded-lg flex-1" /><select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="p-3 border rounded-lg md:w-48 bg-white"><option value="manager">Manager (Tours, Bookings, Reviews)</option><option value="admin">Admin (Full Access)</option></select><button type="submit" className="bg-safari-green text-white px-6 py-3 rounded-lg font-bold hover:bg-safari-teal transition">Grant Access</button></form>
+                <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 mb-8 bg-gray-50 p-6 rounded-lg">
+                  <input type="text" value={newStaffName} onChange={(e) => setNewStaffName(e.target.value)} placeholder="Staff Member Name" required className="p-3 border rounded-lg flex-1" />
+                  <input type="email" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} placeholder="Staff Email Address" required className="p-3 border rounded-lg flex-1" />
+                  <select value={newStaffRole} onChange={(e) => setNewStaffRole(e.target.value)} className="p-3 border rounded-lg md:w-48 bg-white">
+                    <option value="manager">Manager (Tours, Bookings, Reviews)</option>
+                    <option value="admin">Admin (Full Access)</option>
+                  </select>
+                  <button type="submit" className="bg-safari-green text-white px-6 py-3 rounded-lg font-bold hover:bg-safari-teal transition">Grant Access</button>
+                </form>
                 <h3 className="text-lg font-bold text-gray-700 mb-4">Current Team Members</h3>
-                <div className="overflow-x-auto"><table className="w-full text-left border-collapse"><thead className="bg-gray-50 text-gray-600 text-sm uppercase"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Role</th><th className="p-4">Actions</th></tr></thead><tbody className="divide-y divide-gray-100 text-sm">{staffList.map(member => (<tr key={member.email} className="hover:bg-gray-50"><td className="p-4 font-bold">{member.full_name || 'Unknown'}</td><td className="p-4">{member.email}</td><td className="p-4 capitalize">{member.role || 'staff'}</td><td className="p-4">{member.email !== user.email && (<button onClick={() => handleRemoveStaff(member)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Remove</button>)}</td></tr>))}</tbody></table></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 text-gray-600 text-sm uppercase"><tr><th className="p-4">Name</th><th className="p-4">Email</th><th className="p-4">Role</th><th className="p-4">Actions</th></tr></thead>
+                    <tbody className="divide-y divide-gray-100 text-sm">
+                      {staffList.map(member => (
+                        <tr key={member.email} className="hover:bg-gray-50">
+                          <td className="p-4 font-bold">{member.full_name || 'Unknown'}</td>
+                          <td className="p-4">{member.email}</td>
+                          <td className="p-4 capitalize">{member.role || 'staff'}</td>
+                          <td className="p-4">
+                            {member.email !== user.email && (<button onClick={() => handleRemoveStaff(member)} className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm hover:bg-red-200 transition">Remove</button>)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -732,7 +945,10 @@ export default function Admin() {
       {editingBooking && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
-            <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-safari-green">Edit Booking: {editingBooking.first_name} {editingBooking.last_name}</h2><button onClick={() => setEditingBooking(null)} className="text-gray-500 hover:text-red-500 text-2xl">&times;</button></div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-safari-green">Edit Booking: {editingBooking.first_name} {editingBooking.last_name}</h2>
+              <button onClick={() => setEditingBooking(null)} className="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+            </div>
             <form onSubmit={saveBookingEdits} className="space-y-4">
               <div><label className="block text-sm font-bold text-gray-700 mb-1">Booking Status</label><select name="status" value={bookingForm.status} onChange={handleBookingFormChange} className="w-full p-2 border rounded"><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select></div>
               <div><label className="block text-sm font-bold text-gray-700 mb-1">Payment Status</label><select name="payment_status" value={bookingForm.payment_status} onChange={handleBookingFormChange} className="w-full p-2 border rounded"><option value="unpaid">Unpaid</option><option value="deposit_paid">Deposit Paid</option><option value="fully_paid">Fully Paid</option></select></div>

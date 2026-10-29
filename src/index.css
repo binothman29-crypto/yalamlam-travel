@@ -155,3 +155,27 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--safari-teal);
 }
+
+/* React Calendar Custom Styling */
+.react-calendar {
+  width: 100%;
+  font-family: inherit;
+  border: none !important;
+}
+
+.react-calendar__tile--active {
+  background: #059669 !important; /* safari-green */
+  color: white !important;
+}
+
+.react-calendar__tile--active:hover {
+  background: #047857 !important;
+}
+
+.react-calendar__tile:enabled:hover {
+  background-color: #f0fdf4 !important;
+}
+
+.react-calendar__month-view__days__day--weekend {
+  color: #dc2626;
+}
