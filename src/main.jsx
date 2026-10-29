@@ -12,11 +12,12 @@ ReactGA.initialize('G-K4K4NMCD4M');
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-     <CurrencyProvider>
-      <LanguageProvider>
-        <App />
-      </LanguageProvider>
-     </CurrencyProvider>
+      {/* CurrencyProvider wraps LanguageProvider, which wraps App */}
+      <CurrencyProvider>
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
+      </CurrencyProvider>
     </BrowserRouter>
   </React.StrictMode>,
 )
