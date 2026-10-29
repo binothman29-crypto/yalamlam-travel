@@ -7,24 +7,25 @@ import { useCurrency } from '../context/CurrencyContext';
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [isStaff, setIsStaff] = useState(false); // <-- NEW: Track if user is staff
+  const [isStaff, setIsStaff] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const navigate = useNavigate();
+  
   const { lang, t, changeLanguage } = useLanguage();
-  const { currency, changeCurrency, formatPrice } = useCurrency();
+  // FIX 1: Added 'rates' to the destructured variables
+  const { currency, changeCurrency, rates } = useCurrency();
 
   useEffect(() => {
     const checkAuthAndStaff = async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Check if the user's email exists in the staff table
         const { data: staffData } = await supabase
           .from('staff')
           .select('role')
           .eq('email', currentUser.email.toLowerCase())
           .maybeSingle();
         
-        setIsStaff(!!staffData); // True if staffData exists, false otherwise
+        setIsStaff(!!staffData);
       } else {
         setIsStaff(false);
       }
@@ -51,11 +52,12 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
 
+  // FIX 2: Added flag emojis back to the languages array
   const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'ar', name: 'العربية' },
-    { code: 'fr', name: 'French' },
-    { code: 'tr', name: 'Turkish' },
+    { code: 'en', name: 'English', flag: '🇬🇧' },
+    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'fr', name: 'French', flag: '🇫🇷' },
+    { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
   ];
 
   const currentLang = languages.find(l => l.code === lang);
@@ -118,7 +120,8 @@ export default function Navbar() {
                 className="appearance-none bg-transparent text-sm font-medium text-gray-700 hover:text-safari-green focus:outline-none cursor-pointer pr-6"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.25rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25em 1.25em' }}
               >
-                {Object.keys(rates).map((curr) => (
+                {/* FIX 3: 'rates' is now properly defined, so this won't crash */}
+                {rates && Object.keys(rates).map((curr) => (
                   <option key={curr} value={curr}>{curr}</option>
                 ))}
               </select>
@@ -126,7 +129,6 @@ export default function Navbar() {
 
             {user ? (
               <div className="flex items-center space-x-3 flex-shrink-0">
-                {/* NEW: Admin Dashboard Link (Only visible to staff) */}
                 {isStaff && (
                   <Link to="/admin" className="text-safari-gold font-bold hover:text-yellow-600 transition hidden md:inline flex items-center gap-1">
                     ⚙️ Admin
@@ -187,7 +189,6 @@ export default function Navbar() {
               
               {user ? (
                 <>
-                  {/* NEW: Mobile Admin Dashboard Link (Only visible to staff) */}
                   {isStaff && (
                     <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="text-safari-gold font-bold transition px-2 flex items-center gap-2">
                       ⚙️ Admin Dashboard
