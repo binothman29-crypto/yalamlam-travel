@@ -133,6 +133,19 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* --- QUICK TRANSFER FLOATING BUTTON --- */}
+      <div className="fixed bottom-6 left-6 z-50 hidden md:block">
+        <Link to="/transfers" className="flex items-center gap-3 bg-white shadow-xl rounded-full px-5 py-3 border border-gray-200 hover:shadow-2xl hover:scale-105 transition-all duration-300 group">
+          <div className="bg-safari-green text-white p-2 rounded-full">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          </div>
+          <div className="text-left">
+            <p className="text-xs text-gray-500 font-medium">Need a ride?</p>
+            <p className="text-sm font-bold text-safari-green group-hover:text-safari-teal">Quick Transfer</p>
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }

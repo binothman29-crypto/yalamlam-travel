@@ -50,7 +50,7 @@ TRANSFER REQUEST DETAILS:
 ⏰ Time: ${formData.time}
  Passengers: ${formData.passengers}
  Luggage: ${formData.luggage}
-📍 Route: ${formData.pickup} ️ ${formData.dropoff}
+📍 Route: ${formData.pickup} ➡️ ${formData.dropoff}
 ${formData.notes ? `📝 Notes: ${formData.notes}` : ''}
       `.trim();
 
@@ -198,7 +198,7 @@ ${formData.notes ? `📝 Notes: ${formData.notes}` : ''}
                 {['standard', 'van', 'luxury'].map(type => (
                   <label key={type} className={`cursor-pointer border-2 rounded-xl p-4 text-center transition ${formData.vehicle === type ? 'border-safari-green bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="vehicle" value={type} checked={formData.vehicle === type} onChange={handleChange} className="hidden" />
-                    <div className="text-3xl mb-2">{type === 'standard' ? '🚗' : type === 'van' ? '🚐' : ''}</div>
+                    <div className="text-3xl mb-2">{type === 'standard' ? '🚗' : type === 'van' ? '🚐' : '🚙'}</div>
                     <div className="font-bold text-gray-800 capitalize">{type === 'standard' ? 'Standard Sedan' : type === 'van' ? 'Family Van' : 'Luxury SUV'}</div>
                     <div className="text-xs text-gray-500 mt-1">{type === 'standard' ? '1-3 Passengers' : type === 'van' ? '4-7 Passengers' : '1-3 Passengers (Premium)'}</div>
                   </label>
@@ -269,6 +269,62 @@ ${formData.notes ? `📝 Notes: ${formData.notes}` : ''}
             )}
           </div>
         </form>
+      </div>
+
+      {/* --- TRANSFER PRICING GUIDE --- */}
+      <div className="max-w-5xl mx-auto mt-16">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold text-safari-green mb-2">Transparent Fixed Prices</h2>
+          <p className="text-gray-600">No hidden fees. No surge pricing. Just reliable, private transport.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Route 1 */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-2xl">✈️</span>
+              <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">Popular</span>
+            </div>
+            <h3 className="font-bold text-gray-800 mb-1">Airport to Stone Town</h3>
+            <p className="text-sm text-gray-500 mb-4">Zanzibar Airport (ZNZ) ➡️ Stone Town</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-safari-green">$25</span>
+              <span className="text-gray-500 text-sm">/ Standard Sedan</span>
+            </div>
+          </div>
+
+          {/* Route 2 */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-2xl">🌴</span>
+              <span className="bg-safari-gold/20 text-safari-gold text-xs font-bold px-3 py-1 rounded-full">Beach</span>
+            </div>
+            <h3 className="font-bold text-gray-800 mb-1">Airport to Nungwi / Kendwa</h3>
+            <p className="text-sm text-gray-500 mb-4">Zanzibar Airport (ZNZ) ➡️ North Beach</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-safari-green">$45</span>
+              <span className="text-gray-500 text-sm">/ Family Van</span>
+            </div>
+          </div>
+
+          {/* Route 3 */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-2xl">🌊</span>
+              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">South</span>
+            </div>
+            <h3 className="font-bold text-gray-800 mb-1">Airport to Paje / Jambiani</h3>
+            <p className="text-sm text-gray-500 mb-4">Zanzibar Airport (ZNZ) ➡️ East Coast</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-safari-green">$35</span>
+              <span className="text-gray-500 text-sm">/ Standard Sedan</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-gray-500 text-sm mt-8">
+          * Prices are estimates for one-way private transfers. Final price confirmed via WhatsApp based on exact hotel location and vehicle type.
+        </p>
       </div>
     </div>
   );
