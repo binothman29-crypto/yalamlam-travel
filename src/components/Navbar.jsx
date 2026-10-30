@@ -82,6 +82,7 @@ export default function Navbar() {
             <Link to="/halal" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('halalTourism')}</Link>
             <Link to="/destinations" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('destinations')}</Link>
             <Link to="/contact" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">{t('contact')}</Link>
+            <Link to="/transfers" className="text-gray-700 hover:text-safari-green font-medium transition whitespace-nowrap">Transfers</Link>
             
             {/* Language Switcher */}
             <div className="relative flex-shrink-0">
