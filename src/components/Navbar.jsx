@@ -167,6 +167,7 @@ export default function Navbar() {
               <Link to="/halal" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('halalTourism')}</Link>
               <Link to="/destinations" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('destinations')}</Link>
               <Link to="/contact" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">{t('contact')}</Link>
+              <Link to="/transfers" onClick={() => setIsMenuOpen(false)} className="text-gray-700 hover:text-safari-green font-medium transition px-2">Transfers</Link>
 
               {/* Mobile Language Switcher */}
               <div className="px-2 pt-2 border-t border-gray-200">
