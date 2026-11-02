@@ -35,10 +35,13 @@ export default function Admin() {
   const [staffList, setStaffList] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   
-  // NEW: Transfer Routes State
   const [transferRoutes, setTransferRoutes] = useState([]);
   const [loadingTransfers, setLoadingTransfers] = useState(true);
   const [newTransfer, setNewTransfer] = useState({ route_name: '', price_usd: '', vehicle_type: 'Standard Sedan' });
+  
+  // NEW: Edit Route State
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [routeForm, setRouteForm] = useState({});
 
   const [activeTab, setActiveTab] = useState('bookings');
   const [bookingsView, setBookingsView] = useState('list');
@@ -59,7 +62,6 @@ export default function Admin() {
 
   const navigate = useNavigate();
 
-  // --- ACTIVITY LOGGING HELPER ---
   const logActivity = async (action, details = '') => {
     if (!user) return;
     try {
@@ -75,7 +77,6 @@ export default function Admin() {
     }
   };
 
-  // 1. Check Authentication & Staff Status
   useEffect(() => {
     const checkUser = async () => {
       try {
@@ -119,7 +120,7 @@ export default function Admin() {
       supabase.from('contacts').select('*').order('created_at', { ascending: false }),
       supabase.from('reviews').select('*, tours(title)').order('created_at', { ascending: false }),
       supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(200),
-      supabase.from('transfer_routes').select('*').order('price_usd', { ascending: true }), // NEW
+      supabase.from('transfer_routes').select('*').order('price_usd', { ascending: true }),
     ]);
 
     [['tours', toursRes], ['bookings', bookingsRes], ['booking_notes', notesRes], ['contacts', contactsRes], ['reviews', reviewsRes], ['transfer_routes', transfersRes]]
@@ -134,8 +135,6 @@ export default function Admin() {
     setContacts(contactsRes.data || []);
     setReviews(reviewsRes.data || []);
     setActivityLogs(logsRes.data || []);
-    
-    // NEW: Set transfer routes
     setTransferRoutes(transfersRes.data || []);
     setLoadingTransfers(false);
   };
@@ -338,7 +337,6 @@ export default function Admin() {
     fetchStaff();
   };
 
-  // --- NEW: TRANSFER ROUTE MANAGEMENT ---
   const handleAddTransferRoute = async (e) => {
     e.preventDefault();
     if (!newTransfer.route_name || !newTransfer.price_usd) {
@@ -368,6 +366,55 @@ export default function Admin() {
     }
   };
 
+  // NEW: Open Edit Route Modal
+  const openEditRoute = (route) => {
+    setEditingRoute(route);
+    setRouteForm({
+      route_name: route.route_name || '',
+      pickup: route.pickup || '',
+      dropoff: route.dropoff || '',
+      vehicle_type: route.vehicle_type || 'Standard Sedan',
+      price_usd: route.price_usd || '',
+      badge: route.badge || '',
+      icon: route.icon || '🚗'
+    });
+  };
+
+  // NEW: Handle Route Form Change
+  const handleRouteFormChange = (e) => {
+    const { name, value } = e.target;
+    setRouteForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // NEW: Save Route Edits
+  const saveRouteEdits = async (e) => {
+    e.preventDefault();
+    if (!routeForm.route_name || !routeForm.price_usd) {
+      alert('Please fill in route name and price');
+      return;
+    }
+
+    const { error } = await supabase.from('transfer_routes').update({
+      route_name: routeForm.route_name,
+      pickup: routeForm.pickup,
+      dropoff: routeForm.dropoff,
+      vehicle_type: routeForm.vehicle_type,
+      price_usd: parseFloat(routeForm.price_usd),
+      badge: routeForm.badge,
+      icon: routeForm.icon
+    }).eq('id', editingRoute.id);
+
+    if (error) {
+      alert("Could not save the route: " + error.message);
+      return;
+    }
+
+    await logActivity('Edited transfer route', `Updated route: ${routeForm.route_name} to $${routeForm.price_usd}`);
+    setEditingRoute(null);
+    fetchData();
+    alert('Route updated successfully!');
+  };
+
   const handleDeleteTransferRoute = async (id) => {
     if (!window.confirm("Delete this transfer route?")) return;
     const { error } = await supabase.from('transfer_routes').delete().eq('id', id);
@@ -387,7 +434,6 @@ export default function Admin() {
     }
     fetchData();
   };
-  // --------------------------------------
 
   const handleTourChange = (e) => {
     const { name, value, type } = e.target;
@@ -509,7 +555,6 @@ export default function Admin() {
     fetchData();
   };
 
-  // --- ANALYTICS CALCULATIONS ---
   const totalBookings = bookings.length;
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
   const pendingBookings = bookings.filter(b => b.status === 'pending').length;
@@ -540,7 +585,6 @@ export default function Admin() {
         <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-30 lg:hidden"></div>
       )}
 
-      {/* --- LEFT SIDEBAR --- */}
       <aside className={`w-64 bg-safari-green text-white flex flex-col fixed lg:sticky top-0 h-screen z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 border-b border-white/10 flex items-center gap-3">
           <img src="/logo.png" alt="Yalamlam" className="h-10 w-10 rounded-full bg-white p-1" />
@@ -571,7 +615,6 @@ export default function Admin() {
               <button onClick={() => handleTabChange('tours')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'tours' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>🏝️</span> Tours
               </button>
-              {/* NEW: Transfer Routes Tab */}
               <button onClick={() => handleTabChange('transfers')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'transfers' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>🚗</span> Transfer Routes
               </button>
@@ -607,7 +650,6 @@ export default function Admin() {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT AREA --- */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white shadow-sm sticky top-0 z-20 px-4 py-3 flex justify-between items-center border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -638,7 +680,6 @@ export default function Admin() {
         <main className="p-4 md:p-8 flex-grow">
           <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-sm p-6">
             
-            {/* --- BOOKINGS TAB --- */}
             {activeTab === 'bookings' && (
               <div>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -766,7 +807,6 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- CONTACTS TAB --- */}
             {activeTab === 'contacts' && (
               <div className="overflow-x-auto">
                 <h2 className="text-xl font-bold text-safari-green mb-4">Contact Messages</h2>
@@ -791,7 +831,6 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- REVIEWS TAB --- */}
             {activeTab === 'reviews' && (userRole === 'admin' || userRole === 'manager') && (
               <div className="overflow-x-auto">
                 <h2 className="text-xl font-bold text-safari-green mb-4">Manage Customer Reviews</h2>
@@ -818,7 +857,6 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- ANALYTICS TAB --- */}
             {activeTab === 'analytics' && (userRole === 'admin' || userRole === 'manager') && (
               <div className="space-y-8">
                 <h2 className="text-2xl font-bold text-safari-green">Business Overview</h2>
@@ -866,7 +904,6 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- TOURS TAB --- */}
             {activeTab === 'tours' && (userRole === 'admin' || userRole === 'manager') && (
               <div>
                 <h2 className="text-xl font-bold text-safari-green mb-4">{editingTour ? 'Edit Tour' : 'Add New Tour'}</h2>
@@ -935,13 +972,11 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- TRANSFER ROUTES TAB --- */}
             {activeTab === 'transfers' && (userRole === 'admin' || userRole === 'manager') && (
               <div>
                 <h2 className="text-xl font-bold text-safari-green mb-4">Manage Transfer Routes & Prices</h2>
                 <p className="text-gray-600 mb-6 text-sm">Add, edit, or update the fixed prices shown on the public Transfers page.</p>
                 
-                {/* Quick Add Form */}
                 <form onSubmit={handleAddTransferRoute} className="bg-gray-50 p-4 rounded-lg mb-6">
                   <h3 className="font-bold text-gray-700 mb-3">Add New Route</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -976,7 +1011,6 @@ export default function Admin() {
                   </div>
                 </form>
 
-                {/* Routes Table */}
                 <div className="overflow-x-auto">
                   {loadingTransfers ? (
                     <p className="text-center text-gray-500 py-8">Loading routes...</p>
@@ -1023,7 +1057,13 @@ export default function Admin() {
                                 {route.is_active ? 'Active' : 'Hidden'}
                               </button>
                             </td>
-                            <td className="p-4">
+                            <td className="p-4 flex gap-2">
+                              <button 
+                                onClick={() => openEditRoute(route)}
+                                className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200"
+                              >
+                                Edit
+                              </button>
                               <button 
                                 onClick={() => handleDeleteTransferRoute(route.id)}
                                 className="text-red-600 hover:text-red-800 text-xs font-bold"
@@ -1043,7 +1083,6 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- ACTIVITY LOG TAB --- */}
             {activeTab === 'activity' && userRole === 'admin' && (
               <div className="overflow-x-auto">
                 <div className="flex justify-between items-center mb-4">
@@ -1074,7 +1113,6 @@ export default function Admin() {
               </div>
             )}
 
-            {/* --- TEAM TAB --- */}
             {activeTab === 'team' && userRole === 'admin' && (
               <div>
                 <h2 className="text-xl font-bold text-safari-green mb-4">Manage Staff Access</h2>
@@ -1125,6 +1163,65 @@ export default function Admin() {
               <div><label className="block text-sm font-bold text-gray-700 mb-1">Booking Status</label><select name="status" value={bookingForm.status} onChange={handleBookingFormChange} className="w-full p-2 border rounded"><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select></div>
               <div><label className="block text-sm font-bold text-gray-700 mb-1">Payment Status</label><select name="payment_status" value={bookingForm.payment_status} onChange={handleBookingFormChange} className="w-full p-2 border rounded"><option value="unpaid">Unpaid</option><option value="deposit_paid">Deposit Paid</option><option value="fully_paid">Fully Paid</option></select></div>
               <div><label className="block text-sm font-bold text-gray-700 mb-1">Internal Notes (staff only)</label><textarea name="notes" value={bookingForm.notes} onChange={handleBookingFormChange} rows="3" className="w-full p-2 border rounded" placeholder="e.g., Customer prefers window seat, allergic to nuts..."></textarea></div>
+              <button type="submit" className="w-full bg-safari-green text-white py-2 rounded-lg font-bold hover:bg-safari-teal">Save Changes</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Edit Route Modal */}
+      {editingRoute && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-safari-green">Edit Transfer Route</h2>
+              <button onClick={() => setEditingRoute(null)} className="text-gray-500 hover:text-red-500 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={saveRouteEdits} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Route Name</label>
+                <input type="text" name="route_name" value={routeForm.route_name} onChange={handleRouteFormChange} required className="w-full p-2 border rounded" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Pickup Location</label>
+                  <input type="text" name="pickup" value={routeForm.pickup} onChange={handleRouteFormChange} required className="w-full p-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Drop-off Location</label>
+                  <input type="text" name="dropoff" value={routeForm.dropoff} onChange={handleRouteFormChange} required className="w-full p-2 border rounded" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Vehicle Type</label>
+                  <select name="vehicle_type" value={routeForm.vehicle_type} onChange={handleRouteFormChange} className="w-full p-2 border rounded">
+                    <option value="Standard Sedan">Standard Sedan</option>
+                    <option value="Family Van">Family Van</option>
+                    <option value="Luxury SUV">Luxury SUV</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Price (USD)</label>
+                  <input type="number" name="price_usd" value={routeForm.price_usd} onChange={handleRouteFormChange} required className="w-full p-2 border rounded" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Badge (Optional)</label>
+                  <select name="badge" value={routeForm.badge} onChange={handleRouteFormChange} className="w-full p-2 border rounded">
+                    <option value="">None</option>
+                    <option value="Popular">Popular</option>
+                    <option value="Beach">Beach</option>
+                    <option value="South">South</option>
+                    <option value="New">New</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Icon (Emoji)</label>
+                  <input type="text" name="icon" value={routeForm.icon} onChange={handleRouteFormChange} className="w-full p-2 border rounded" placeholder="e.g. ✈️, 🌴, 🌊" />
+                </div>
+              </div>
               <button type="submit" className="w-full bg-safari-green text-white py-2 rounded-lg font-bold hover:bg-safari-teal">Save Changes</button>
             </form>
           </div>
