@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
 
 const WHATSAPP_NUMBER = '255778265758';
 
+export default function Transfers() {
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+  
+  // Dynamic transfer routes state (MOVED INSIDE THE COMPONENT)
   const [transferRoutes, setTransferRoutes] = useState([]);
   const [loadingRoutes, setLoadingRoutes] = useState(true);
 
@@ -22,9 +27,6 @@ const WHATSAPP_NUMBER = '255778265758';
     fetchRoutes();
   }, []);
 
-export default function Transfers() {
-  const { t } = useLanguage();
-  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
