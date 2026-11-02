@@ -34,9 +34,14 @@ export default function Admin() {
   const [tours, setTours] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
+  
+  // NEW: Transfer Routes State
+  const [transferRoutes, setTransferRoutes] = useState([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(true);
+  const [newTransfer, setNewTransfer] = useState({ route_name: '', price_usd: '', vehicle_type: 'Standard Sedan' });
 
   const [activeTab, setActiveTab] = useState('bookings');
-  const [bookingsView, setBookingsView] = useState('list'); // 'list' or 'calendar'
+  const [bookingsView, setBookingsView] = useState('list');
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   const [editingBooking, setEditingBooking] = useState(null);
@@ -107,16 +112,17 @@ export default function Admin() {
   }, [navigate]);
 
   const fetchData = async () => {
-    const [toursRes, bookingsRes, notesRes, contactsRes, reviewsRes, logsRes] = await Promise.all([
+    const [toursRes, bookingsRes, notesRes, contactsRes, reviewsRes, logsRes, transfersRes] = await Promise.all([
       supabase.from('tours').select('*').order('created_at', { ascending: false }),
       supabase.from('bookings').select('*').order('created_at', { ascending: false }),
       supabase.from('booking_notes').select('booking_id, notes'),
       supabase.from('contacts').select('*').order('created_at', { ascending: false }),
       supabase.from('reviews').select('*, tours(title)').order('created_at', { ascending: false }),
       supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('transfer_routes').select('*').order('price_usd', { ascending: true }), // NEW
     ]);
 
-    [['tours', toursRes], ['bookings', bookingsRes], ['booking_notes', notesRes], ['contacts', contactsRes], ['reviews', reviewsRes]]
+    [['tours', toursRes], ['bookings', bookingsRes], ['booking_notes', notesRes], ['contacts', contactsRes], ['reviews', reviewsRes], ['transfer_routes', transfersRes]]
       .forEach(([name, res]) => { if (res.error) console.error(`Failed to load ${name}:`, res.error); });
 
     setTours(toursRes.data || []);
@@ -128,6 +134,10 @@ export default function Admin() {
     setContacts(contactsRes.data || []);
     setReviews(reviewsRes.data || []);
     setActivityLogs(logsRes.data || []);
+    
+    // NEW: Set transfer routes
+    setTransferRoutes(transfersRes.data || []);
+    setLoadingTransfers(false);
   };
 
   const fetchStaff = async () => {
@@ -328,6 +338,57 @@ export default function Admin() {
     fetchStaff();
   };
 
+  // --- NEW: TRANSFER ROUTE MANAGEMENT ---
+  const handleAddTransferRoute = async (e) => {
+    e.preventDefault();
+    if (!newTransfer.route_name || !newTransfer.price_usd) {
+      alert('Please fill in route name and price');
+      return;
+    }
+    const dropoff = newTransfer.route_name.includes(' to ') ? newTransfer.route_name.split(' to ')[1] : newTransfer.route_name;
+    
+    const { error } = await supabase.from('transfer_routes').insert([{
+      route_name: newTransfer.route_name,
+      pickup: 'Zanzibar Airport (ZNZ)',
+      dropoff: dropoff,
+      vehicle_type: newTransfer.vehicle_type,
+      price_usd: parseFloat(newTransfer.price_usd),
+      badge: 'New',
+      icon: '🚗',
+      is_active: true
+    }]);
+
+    if (error) {
+      alert('Error adding route: ' + error.message);
+    } else {
+      await logActivity('Added transfer route', `Added route: ${newTransfer.route_name} for $${newTransfer.price_usd}`);
+      alert('Route added successfully!');
+      setNewTransfer({ route_name: '', price_usd: '', vehicle_type: 'Standard Sedan' });
+      fetchData();
+    }
+  };
+
+  const handleDeleteTransferRoute = async (id) => {
+    if (!window.confirm("Delete this transfer route?")) return;
+    const { error } = await supabase.from('transfer_routes').delete().eq('id', id);
+    if (error) {
+      alert("Could not delete route: " + error.message);
+      return;
+    }
+    await logActivity('Deleted transfer route', `Deleted transfer route ID: ${id}`);
+    fetchData();
+  };
+
+  const handleToggleTransferStatus = async (id, currentStatus) => {
+    const { error } = await supabase.from('transfer_routes').update({ is_active: !currentStatus }).eq('id', id);
+    if (error) {
+      alert("Could not update status: " + error.message);
+      return;
+    }
+    fetchData();
+  };
+  // --------------------------------------
+
   const handleTourChange = (e) => {
     const { name, value, type } = e.target;
     setNewTour(prev => ({ ...prev, [name]: type === 'number' || type === 'range' ? Number(value) : value }));
@@ -510,8 +571,9 @@ export default function Admin() {
               <button onClick={() => handleTabChange('tours')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'tours' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>🏝️</span> Tours
               </button>
+              {/* NEW: Transfer Routes Tab */}
               <button onClick={() => handleTabChange('transfers')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'transfers' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                <span>🚗</span> Transfers
+                <span>🚗</span> Transfer Routes
               </button>
             </>
           )}
@@ -558,9 +620,9 @@ export default function Admin() {
               {activeTab === 'analytics' && 'Business Analytics'}
               {activeTab === 'reviews' && 'Manage Reviews'}
               {activeTab === 'tours' && (editingTour ? 'Edit Tour' : 'Add New Tour')}
+              {activeTab === 'transfers' && 'Manage Transfer Routes'}
               {activeTab === 'activity' && 'Activity Log'}
               {activeTab === 'team' && 'Team Management'}
-              {activeTab === 'transfers' && 'Transfers'}
             </h1>
           </div>
           <div className="flex gap-2">
@@ -595,7 +657,6 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* LIST VIEW */}
                 {bookingsView === 'list' && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -640,7 +701,6 @@ export default function Admin() {
                   </div>
                 )}
 
-                {/* CALENDAR VIEW */}
                 {bookingsView === 'calendar' && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -879,25 +939,106 @@ export default function Admin() {
             {activeTab === 'transfers' && (userRole === 'admin' || userRole === 'manager') && (
               <div>
                 <h2 className="text-xl font-bold text-safari-green mb-4">Manage Transfer Routes & Prices</h2>
-                <p className="text-gray-600 mb-6 text-sm">Add or update the fixed prices shown on the public Transfers page.</p>
+                <p className="text-gray-600 mb-6 text-sm">Add, edit, or update the fixed prices shown on the public Transfers page.</p>
                 
-                {/* Simple Add Form */}
-                <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                   <input type="text" placeholder="Route Name (e.g. Airport to Nungwi)" className="p-2 border rounded" />
-                   <input type="number" placeholder="Price USD" className="p-2 border rounded" />
-                   <button className="bg-safari-green text-white rounded font-bold">Add Route (Coming Soon)</button>
-                </div>
+                {/* Quick Add Form */}
+                <form onSubmit={handleAddTransferRoute} className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <h3 className="font-bold text-gray-700 mb-3">Add New Route</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <input 
+                      type="text" 
+                      placeholder="Route Name (e.g. Airport to Nungwi)" 
+                      className="p-2 border rounded text-sm"
+                      value={newTransfer.route_name}
+                      onChange={(e) => setNewTransfer({...newTransfer, route_name: e.target.value})}
+                      required
+                    />
+                    <input 
+                      type="number" 
+                      placeholder="Price USD" 
+                      className="p-2 border rounded text-sm"
+                      value={newTransfer.price_usd}
+                      onChange={(e) => setNewTransfer({...newTransfer, price_usd: e.target.value})}
+                      required
+                    />
+                    <select 
+                      className="p-2 border rounded text-sm" 
+                      value={newTransfer.vehicle_type}
+                      onChange={(e) => setNewTransfer({...newTransfer, vehicle_type: e.target.value})}
+                    >
+                      <option value="Standard Sedan">Standard Sedan</option>
+                      <option value="Family Van">Family Van</option>
+                      <option value="Luxury SUV">Luxury SUV</option>
+                    </select>
+                    <button type="submit" className="bg-safari-green text-white rounded font-bold text-sm hover:bg-safari-teal transition">
+                      + Add Route
+                    </button>
+                  </div>
+                </form>
 
+                {/* Routes Table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
-                      <tr><th className="p-4">Route</th><th className="p-4">Vehicle</th><th className="p-4">Price</th><th className="p-4">Status</th></tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 text-sm">
-                      {/* We will map the database data here in the next step */}
-                      <tr><td colSpan="4" className="p-4 text-center text-gray-500">Loading routes...</td></tr>
-                    </tbody>
-                  </table>
+                  {loadingTransfers ? (
+                    <p className="text-center text-gray-500 py-8">Loading routes...</p>
+                  ) : (
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
+                        <tr>
+                          <th className="p-4">Route</th>
+                          <th className="p-4">Vehicle</th>
+                          <th className="p-4">Price</th>
+                          <th className="p-4">Badge</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-sm">
+                        {transferRoutes.map((route) => (
+                          <tr key={route.id} className="hover:bg-gray-50">
+                            <td className="p-4">
+                              <div className="font-bold text-gray-800">{route.route_name}</div>
+                              <div className="text-xs text-gray-500">{route.pickup} ➡️ {route.dropoff}</div>
+                            </td>
+                            <td className="p-4">{route.vehicle_type}</td>
+                            <td className="p-4 font-bold text-safari-green">${route.price_usd}</td>
+                            <td className="p-4">
+                              {route.badge ? (
+                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                  route.badge === 'Popular' ? 'bg-green-100 text-green-700' : 
+                                  route.badge === 'Beach' ? 'bg-safari-gold/20 text-safari-gold' : 
+                                  route.badge === 'New' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {route.badge}
+                                </span>
+                              ) : <span className="text-gray-400">—</span>}
+                            </td>
+                            <td className="p-4">
+                              <button 
+                                onClick={() => handleToggleTransferStatus(route.id, route.is_active)}
+                                className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                  route.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                                }`}
+                              >
+                                {route.is_active ? 'Active' : 'Hidden'}
+                              </button>
+                            </td>
+                            <td className="p-4">
+                              <button 
+                                onClick={() => handleDeleteTransferRoute(route.id)}
+                                className="text-red-600 hover:text-red-800 text-xs font-bold"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {!loadingTransfers && transferRoutes.length === 0 && (
+                    <p className="text-center text-gray-500 py-8">No transfer routes found. Add one above!</p>
+                  )}
                 </div>
               </div>
             )}
