@@ -5,6 +5,23 @@ import { useLanguage } from '../context/LanguageContext';
 
 const WHATSAPP_NUMBER = '255778265758';
 
+  const [transferRoutes, setTransferRoutes] = useState([]);
+  const [loadingRoutes, setLoadingRoutes] = useState(true);
+
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      const { data, error } = await supabase
+        .from('transfer_routes')
+        .select('*')
+        .eq('is_active', true)
+        .order('price_usd', { ascending: true });
+      
+      if (!error && data) setTransferRoutes(data);
+      setLoadingRoutes(false);
+    };
+    fetchRoutes();
+  }, []);
+
 export default function Transfers() {
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -271,56 +288,41 @@ ${formData.notes ? `📝 Notes: ${formData.notes}` : ''}
         </form>
       </div>
 
-      {/* --- TRANSFER PRICING GUIDE --- */}
+      {/* --- TRANSFER PRICING GUIDE (DYNAMIC) --- */}
       <div className="max-w-5xl mx-auto mt-16">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold text-safari-green mb-2">Transparent Fixed Prices</h2>
           <p className="text-gray-600">No hidden fees. No surge pricing. Just reliable, private transport.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Route 1 */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-2xl">✈️</span>
-              <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">Popular</span>
-            </div>
-            <h3 className="font-bold text-gray-800 mb-1">Airport to Stone Town</h3>
-            <p className="text-sm text-gray-500 mb-4">Zanzibar Airport (ZNZ) ➡️ Stone Town</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-safari-green">$25</span>
-              <span className="text-gray-500 text-sm">/ Standard Sedan</span>
-            </div>
+        {loadingRoutes ? (
+          <p className="text-center text-gray-500">Loading prices...</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {transferRoutes.map((route) => (
+              <div key={route.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-2xl">{route.icon || '🚗'}</span>
+                  {route.badge && (
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                      route.badge === 'Popular' ? 'bg-green-100 text-green-700' : 
+                      route.badge === 'Beach' ? 'bg-safari-gold/20 text-safari-gold' : 
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {route.badge}
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-gray-800 mb-1">{route.route_name}</h3>
+                <p className="text-sm text-gray-500 mb-4">{route.pickup} ➡️ {route.dropoff}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-safari-green">${route.price_usd}</span>
+                  <span className="text-gray-500 text-sm">/ {route.vehicle_type}</span>
+                </div>
+              </div>
+            ))}
           </div>
-
-          {/* Route 2 */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-2xl">🌴</span>
-              <span className="bg-safari-gold/20 text-safari-gold text-xs font-bold px-3 py-1 rounded-full">Beach</span>
-            </div>
-            <h3 className="font-bold text-gray-800 mb-1">Airport to Nungwi / Kendwa</h3>
-            <p className="text-sm text-gray-500 mb-4">Zanzibar Airport (ZNZ) ➡️ North Beach</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-safari-green">$45</span>
-              <span className="text-gray-500 text-sm">/ Family Van</span>
-            </div>
-          </div>
-
-          {/* Route 3 */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-2xl">🌊</span>
-              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">South</span>
-            </div>
-            <h3 className="font-bold text-gray-800 mb-1">Airport to Paje / Jambiani</h3>
-            <p className="text-sm text-gray-500 mb-4">Zanzibar Airport (ZNZ) ➡️ East Coast</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-safari-green">$35</span>
-              <span className="text-gray-500 text-sm">/ Standard Sedan</span>
-            </div>
-          </div>
-        </div>
+        )}
 
         <p className="text-center text-gray-500 text-sm mt-8">
           * Prices are estimates for one-way private transfers. Final price confirmed via WhatsApp based on exact hotel location and vehicle type.

@@ -510,6 +510,9 @@ export default function Admin() {
               <button onClick={() => handleTabChange('tours')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'tours' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
                 <span>🏝️</span> Tours
               </button>
+              <button onClick={() => handleTabChange('transfers')} className={`w-full text-left px-6 py-3 flex items-center gap-3 transition ${activeTab === 'transfers' ? 'bg-white/20 text-white border-r-4 border-safari-gold' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                <span>🚗</span> Transfers
+              </button>
             </>
           )}
 
@@ -557,6 +560,7 @@ export default function Admin() {
               {activeTab === 'tours' && (editingTour ? 'Edit Tour' : 'Add New Tour')}
               {activeTab === 'activity' && 'Activity Log'}
               {activeTab === 'team' && 'Team Management'}
+              {activeTab === 'transfers' && 'Transfers'}
             </h1>
           </div>
           <div className="flex gap-2">
@@ -865,6 +869,33 @@ export default function Admin() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* --- TRANSFER ROUTES TAB --- */}
+            {activeTab === 'transfers' && (userRole === 'admin' || userRole === 'manager') && (
+              <div>
+                <h2 className="text-xl font-bold text-safari-green mb-4">Manage Transfer Routes & Prices</h2>
+                <p className="text-gray-600 mb-6 text-sm">Add or update the fixed prices shown on the public Transfers page.</p>
+                
+                {/* Simple Add Form */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                   <input type="text" placeholder="Route Name (e.g. Airport to Nungwi)" className="p-2 border rounded" />
+                   <input type="number" placeholder="Price USD" className="p-2 border rounded" />
+                   <button className="bg-safari-green text-white rounded font-bold">Add Route (Coming Soon)</button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
+                      <tr><th className="p-4">Route</th><th className="p-4">Vehicle</th><th className="p-4">Price</th><th className="p-4">Status</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-sm">
+                      {/* We will map the database data here in the next step */}
+                      <tr><td colSpan="4" className="p-4 text-center text-gray-500">Loading routes...</td></tr>
                     </tbody>
                   </table>
                 </div>
