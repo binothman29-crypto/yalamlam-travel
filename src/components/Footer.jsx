@@ -48,9 +48,9 @@ export default function Footer() {
           <h3 className="font-bold text-lg mb-4 text-safari-gold">{t('contactInfo')}</h3>
           <ul className="space-y-2 text-gray-300 text-sm">
             <li>📧 info@yalamlamtravel.com</li>
-            <li>📞 {t('reservations')}: +255 778 265 758</li>
-            <li>📞 {t('zanzibarOffice')}: +255 773 348 401</li>
-            <li>📞 {t('customerSupport')}: +255 715 869 725</li>
+            <li>📞 {t('reservations')}: +255 773 348 401</li>
+            <li>📞 {t('zanzibarOffice')}: +255 778 265 758</li>
+            <li>📞 {t('customerSupport')}: +255 778 265 758</li>
           </ul>
         </div>
       </div>

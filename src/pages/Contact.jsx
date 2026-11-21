@@ -68,9 +68,10 @@ export default function Contact() {
             <h3 className="text-xl font-heading font-bold text-safari-green mb-2">{t('callWhatsappUs')}</h3>
 
             <div className="text-safari-teal font-semibold space-y-1">
-              <a href="tel:+255778265758" className="block hover:text-safari-gold transition">+255 778 265 758</a>
               <a href="tel:+255773348401" className="block hover:text-safari-gold transition">+255 773 348 401</a>
-              <a href="tel:+255715869725" className="block hover:text-safari-gold transition">+255 715 869 725</a>
+              <a href="tel:+255773265758" className="block hover:text-safari-gold transition">+255 778 265 758</a>
+              <a href="tel:+255715869725" className="block hover:text-safari-gold transition">+255 778 265 758</a>
+              
             </div>
 
             <p className="text-gray-500 text-sm mt-3">{t('availableHours')}</p>
