@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useLanguage } from '../context/LanguageContext';
 
-const WHATSAPP_NUMBER = '255773348301';
+const WHATSAPP_NUMBER = '255773348401';
 
 export default function Transfers() {
   const { t } = useLanguage();
