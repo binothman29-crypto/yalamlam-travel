@@ -4,7 +4,7 @@ export default function FloatingWhatsApp() {
   const [isOpen, setIsOpen] = useState(false);
 
   // ⚠️ REPLACE THIS WITH YOUR ACTUAL WHATSAPP NUMBER!
-  const phoneNumber = "255778265758"; 
+  const phoneNumber = "255773348401"; 
   const message = "Assalamu Alaikum! I am interested in booking a tour with Yalamlam Travel & Tours.";
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
